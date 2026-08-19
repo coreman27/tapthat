@@ -1,0 +1,288 @@
+:root {
+  --bg: #0b0b12;
+  --bg2: #14141f;
+  --fg: #f4f4fb;
+  --muted: #9a9ab0;
+  --accent: #4f8cff;
+  --accent2: #7c5cff;
+  --danger: #ff3b46;
+  --green: #22c55e;
+  --blue: #3b82f6;
+  --yellow: #f5c518;
+  --red: #ff3b46;
+  --purple: #a855f7;
+  --safe-t: env(safe-area-inset-top, 0px);
+  --safe-b: env(safe-area-inset-bottom, 0px);
+}
+
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  overflow: hidden;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", Roboto, system-ui, sans-serif;
+  -webkit-user-select: none;
+  user-select: none;
+  touch-action: manipulation;
+  overscroll-behavior: none;
+}
+
+#app {
+  position: fixed;
+  inset: 0;
+  background: radial-gradient(120% 90% at 50% -10%, #1c1c2e 0%, var(--bg) 60%);
+}
+
+/* ---------- Screens ---------- */
+.screen {
+  position: absolute;
+  inset: 0;
+  display: none;
+  flex-direction: column;
+  padding: calc(var(--safe-t) + 16px) 20px calc(var(--safe-b) + 16px);
+}
+.screen.active { display: flex; }
+
+.home-inner {
+  margin: auto;
+  width: 100%;
+  max-width: 460px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 18px;
+  text-align: center;
+}
+
+.logo {
+  font-size: clamp(42px, 13vw, 74px);
+  line-height: 0.92;
+  font-weight: 900;
+  letter-spacing: -0.03em;
+  margin: 0;
+}
+.logo-accent {
+  background: linear-gradient(90deg, var(--accent), var(--accent2));
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+.tagline { color: var(--muted); font-size: 16px; margin: 0; max-width: 34ch; }
+
+.name-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  max-width: 320px;
+  justify-content: center;
+}
+.name-row label { color: var(--muted); font-size: 15px; }
+#playerName {
+  flex: 1;
+  background: var(--bg2);
+  border: 1px solid #2a2a3d;
+  color: var(--fg);
+  border-radius: 12px;
+  padding: 12px 14px;
+  font-size: 17px;
+  text-align: center;
+  outline: none;
+}
+#playerName:focus { border-color: var(--accent); }
+
+/* ---------- Buttons ---------- */
+.big-btn {
+  width: 100%;
+  max-width: 340px;
+  border: none;
+  border-radius: 18px;
+  padding: 20px;
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  color: #fff;
+  cursor: pointer;
+  transition: transform 0.06s ease, filter 0.15s ease;
+}
+.big-btn:active { transform: scale(0.97); }
+.big-btn.primary { background: linear-gradient(90deg, var(--accent), var(--accent2)); box-shadow: 0 10px 30px -10px var(--accent); }
+.big-btn.ghost { background: transparent; border: 2px solid #2f2f45; color: var(--fg); }
+.link-btn {
+  background: none; border: none; color: var(--muted);
+  font-size: 15px; text-decoration: underline; cursor: pointer; padding: 6px;
+}
+
+.best-line { display: flex; gap: 10px; align-items: baseline; color: var(--muted); }
+.best-line strong { color: var(--fg); font-size: 22px; }
+
+/* ---------- HUD ---------- */
+.hud {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-variant-numeric: tabular-nums;
+}
+.hud-label { display: block; font-size: 11px; letter-spacing: 0.14em; color: var(--muted); }
+.hud-score span:last-child, .hud-best span:last-child { font-size: 30px; font-weight: 900; }
+.hud-best { text-align: right; opacity: 0.8; }
+
+#timerbar {
+  height: 8px;
+  background: #22223300;
+  border-radius: 99px;
+  margin: 12px 0 4px;
+  overflow: hidden;
+  background: #1d1d2b;
+}
+#timerbar-fill {
+  height: 100%;
+  width: 100%;
+  border-radius: 99px;
+  background: linear-gradient(90deg, var(--green), var(--yellow));
+  transform-origin: left center;
+}
+
+.instruction {
+  text-align: center;
+  font-size: clamp(24px, 7vw, 38px);
+  font-weight: 900;
+  letter-spacing: -0.01em;
+  min-height: 1.4em;
+  padding: 8px 0 4px;
+  transition: color 0.1s ease;
+}
+.instruction.warn { color: var(--danger); }
+
+/* ---------- Playfield ---------- */
+.playfield {
+  position: relative;
+  flex: 1;
+  margin-top: 8px;
+  border-radius: 20px;
+  overflow: hidden;
+  transition: transform 0.5s cubic-bezier(.2,.8,.2,1);
+}
+.playfield.rotate-90 { transform: rotate(90deg) scale(0.72); }
+.playfield.rotate-180 { transform: rotate(180deg); }
+.playfield.rotate-270 { transform: rotate(270deg) scale(0.72); }
+
+.gbtn {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  border: none;
+  border-radius: 18px;
+  font-weight: 800;
+  color: #fff;
+  padding: 0 10px;
+  line-height: 1.05;
+  box-shadow: 0 8px 22px -12px rgba(0,0,0,0.9);
+  transition: transform 0.05s ease;
+  will-change: transform, left, top;
+}
+.gbtn:active { transform: scale(0.95); }
+.gbtn.blue { background: var(--blue); }
+.gbtn.red { background: var(--red); }
+.gbtn.green { background: var(--green); }
+.gbtn.yellow { background: var(--yellow); color: #1a1a1a; }
+.gbtn.purple { background: var(--purple); }
+.gbtn.neutral { background: linear-gradient(135deg, var(--accent), var(--accent2)); }
+
+.hold-gauge {
+  position: absolute;
+  left: 0; bottom: 0;
+  height: 6px;
+  width: 0%;
+  background: rgba(255,255,255,0.85);
+  border-radius: 0 0 18px 18px;
+}
+
+/* ---------- Notification (fake iOS) ---------- */
+.notif-layer { position: absolute; inset: 0; pointer-events: none; }
+.fake-notif {
+  position: absolute;
+  left: 12px; right: 12px;
+  top: calc(var(--safe-t) + 6px);
+  background: rgba(40,40,52,0.92);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  border-radius: 18px;
+  padding: 12px 14px;
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  box-shadow: 0 12px 30px -10px rgba(0,0,0,0.8);
+  pointer-events: auto;
+  animation: notif-in 0.35s cubic-bezier(.2,.9,.2,1);
+}
+@keyframes notif-in { from { transform: translateY(-140%); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+.fake-notif .ic { width: 34px; height: 34px; border-radius: 8px; background: linear-gradient(135deg,#22c55e,#16a34a); flex: none; }
+.fake-notif .tx { text-align: left; }
+.fake-notif .tx b { font-size: 14px; display: block; }
+.fake-notif .tx span { font-size: 13px; color: #d7d7e2; }
+.fake-notif .tm { margin-left: auto; font-size: 12px; color: #b9b9c8; }
+
+/* ---------- Game over ---------- */
+.over-reason { font-size: 22px; font-weight: 800; color: var(--danger); }
+.score-block { display: flex; gap: 34px; }
+.score-final strong, .score-best strong { font-size: 56px; font-weight: 900; display: block; }
+.score-best { opacity: 0.7; }
+.new-best { color: var(--yellow); font-weight: 900; font-size: 20px; letter-spacing: 0.08em; animation: pop 0.4s ease; }
+@keyframes pop { 0% { transform: scale(0.6); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
+.versus {
+  background: var(--bg2);
+  border: 1px solid #2a2a3d;
+  border-radius: 14px;
+  padding: 12px 16px;
+  font-size: 16px;
+  line-height: 1.5;
+  width: 100%;
+  max-width: 340px;
+}
+.versus .win { color: var(--green); font-weight: 800; }
+.versus .lose { color: var(--danger); font-weight: 800; }
+
+.challenge-badge {
+  background: linear-gradient(90deg, var(--accent), var(--accent2));
+  padding: 6px 16px; border-radius: 99px; font-weight: 800; letter-spacing: 0.14em; font-size: 13px;
+}
+.chal-title { font-size: 26px; font-weight: 900; margin: 0; }
+
+.how-inner { align-items: flex-start; text-align: left; }
+.how-inner .chal-title, .how-inner .tagline { align-self: center; }
+.how-list { color: var(--fg); font-size: 16px; line-height: 1.6; padding-left: 20px; }
+.how-list b { color: var(--accent); }
+
+/* ---------- Toast ---------- */
+.toast {
+  position: absolute;
+  left: 50%; bottom: calc(var(--safe-b) + 24px);
+  transform: translateX(-50%);
+  background: #23233a;
+  color: #fff;
+  padding: 12px 18px;
+  border-radius: 12px;
+  font-size: 15px;
+  box-shadow: 0 10px 30px -8px rgba(0,0,0,0.7);
+  z-index: 50;
+  max-width: 88vw;
+  text-align: center;
+}
+
+.hidden { display: none !important; }
+
+/* Screen flashes */
+#screen-game.flash-bad { animation: flashbad 0.3s ease; }
+@keyframes flashbad { 0%,100% { background: transparent; } 40% { background: rgba(255,59,70,0.25); } }
+#screen-game.flash-good { animation: flashgood 0.25s ease; }
+@keyframes flashgood { 0%,100% { background: transparent; } 40% { background: rgba(34,197,94,0.16); } }
+
+.score-bump { animation: bump 0.18s ease; }
+@keyframes bump { 0% { transform: scale(1); } 50% { transform: scale(1.35); } 100% { transform: scale(1); } }

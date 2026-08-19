@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0, user-scalable=no" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="theme-color" content="#0b0b12" />
+  <title>DON'T TAP THAT</title>
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png" />
+  <link rel="icon" href="icons/icon.svg" type="image/svg+xml" />
+  <link rel="stylesheet" href="css/styles.css" />
+</head>
+<body>
+  <div id="app">
+    <!-- HOME -->
+    <section id="screen-home" class="screen active">
+      <div class="home-inner">
+        <h1 class="logo">DON'T<br /><span class="logo-accent">TAP THAT</span></h1>
+        <p class="tagline">Obey the command. Or don't. That's the game.</p>
+
+        <div class="name-row">
+          <label for="playerName">You are</label>
+          <input id="playerName" type="text" maxlength="14" placeholder="Your name" autocomplete="off" spellcheck="false" />
+        </div>
+
+        <button id="btn-play" class="big-btn primary">PLAY</button>
+
+        <div class="best-line">
+          <span>Best</span>
+          <strong id="home-best">0</strong>
+        </div>
+
+        <button id="btn-how" class="link-btn">How to play</button>
+      </div>
+    </section>
+
+    <!-- CHALLENGE INTRO (from a friend link) -->
+    <section id="screen-challenge" class="screen">
+      <div class="home-inner">
+        <div class="challenge-badge">CHALLENGE</div>
+        <h2 id="challenge-title" class="chal-title">Someone survived 0 commands.</h2>
+        <p class="tagline">Can you beat them?</p>
+        <button id="btn-accept" class="big-btn primary">ACCEPT &amp; PLAY</button>
+        <button id="btn-skip-challenge" class="link-btn">Just play normally</button>
+      </div>
+    </section>
+
+    <!-- GAME -->
+    <section id="screen-game" class="screen">
+      <div class="hud">
+        <div class="hud-score">
+          <span class="hud-label">SCORE</span>
+          <span id="score">0</span>
+        </div>
+        <div class="hud-best">
+          <span class="hud-label">BEST</span>
+          <span id="hud-best">0</span>
+        </div>
+      </div>
+      <div id="timerbar"><div id="timerbar-fill"></div></div>
+      <div id="instruction" class="instruction"></div>
+      <div id="playfield" class="playfield"></div>
+      <div id="notif-layer" class="notif-layer"></div>
+    </section>
+
+    <!-- GAME OVER -->
+    <section id="screen-over" class="screen">
+      <div class="home-inner">
+        <div id="over-reason" class="over-reason">You tapped that.</div>
+        <div class="score-block">
+          <div class="score-final">
+            <span class="hud-label">SCORE</span>
+            <strong id="final-score">0</strong>
+          </div>
+          <div class="score-best">
+            <span class="hud-label">BEST</span>
+            <strong id="final-best">0</strong>
+          </div>
+        </div>
+        <div id="new-best" class="new-best hidden">NEW BEST!</div>
+        <div id="versus" class="versus hidden"></div>
+
+        <button id="btn-again" class="big-btn primary">TRY AGAIN</button>
+        <button id="btn-share" class="big-btn ghost">CHALLENGE A FRIEND</button>
+        <button id="btn-home" class="link-btn">Home</button>
+      </div>
+    </section>
+
+    <!-- HOW TO PLAY -->
+    <section id="screen-how" class="screen">
+      <div class="home-inner how-inner">
+        <h2 class="chal-title">How to play</h2>
+        <ul class="how-list">
+          <li>Read the command at the top.</li>
+          <li><b>Do exactly what it says</b> before the timer runs out.</li>
+          <li>Sometimes the command is <b>DON'T</b> do something — so don't.</li>
+          <li>One mistake ends the run. Then you try again. Forever.</li>
+        </ul>
+        <p class="tagline">It learns what you're bad at. It will use that against you.</p>
+        <button id="btn-how-back" class="big-btn primary">GOT IT</button>
+      </div>
+    </section>
+
+    <!-- toast -->
+    <div id="toast" class="toast hidden"></div>
+  </div>
+
+  <script src="js/storage.js"></script>
+  <script src="js/audio.js"></script>
+  <script src="js/share.js"></script>
+  <script src="js/challenges.js"></script>
+  <script src="js/adaptive.js"></script>
+  <script src="js/engine.js"></script>
+  <script src="js/ui.js"></script>
+  <script src="js/main.js"></script>
+</body>
+</html>

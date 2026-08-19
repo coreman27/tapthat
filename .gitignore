@@ -1,0 +1,14 @@
+# Dependencies
+node_modules/
+
+# Capacitor build output / native project generated on demand
+www/
+ios/
+android/
+
+# macOS
+.DS_Store
+
+# Logs
+*.log
+npm-debug.log*

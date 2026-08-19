@@ -1,0 +1,12 @@
+{
+  "appId": "com.tapthat.game",
+  "appName": "DON'T TAP THAT",
+  "webDir": "www",
+  "server": {
+    "iosScheme": "capacitor"
+  },
+  "ios": {
+    "contentInset": "always",
+    "backgroundColor": "#0b0b12"
+  }
+}
