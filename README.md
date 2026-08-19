@@ -38,6 +38,8 @@ In Xcode: pick your device/simulator and press ▶. To submit to the App Store, 
 
 `npm run ios` runs `sync-www` (assembles `www/`) → `cap sync ios` → `cap open ios`.
 
+📱 **Full step-by-step App Store submission guide: [`APPSTORE.md`](APPSTORE.md)** — signing, App Store Connect setup, privacy, screenshots, archive & upload, and a review-readiness checklist. The `ios/` project is already created, configured (portrait-locked, status bar hidden, icons + splash generated), and verified building and running in the Simulator.
+
 ---
 
 ## How the game works

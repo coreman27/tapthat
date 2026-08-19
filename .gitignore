@@ -1,10 +1,11 @@
 # Dependencies
 node_modules/
 
-# Capacitor build output / native project generated on demand
+# Capacitor build output / native project artifacts
 www/
-ios/
 android/
+# Note: ios/ IS committed (has customized Info.plist + generated icons);
+# its own ios/.gitignore excludes Pods, build, and DerivedData.
 
 # macOS
 .DS_Store

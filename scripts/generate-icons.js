@@ -10,7 +10,9 @@ function lerp(a, b, t) { return a + (b - a) * t; }
 function mix(c1, c2, t) { return [lerp(c1[0], c2[0], t), lerp(c1[1], c2[1], t), lerp(c1[2], c2[2], t)]; }
 function clamp01(v) { return Math.max(0, Math.min(1, v)); }
 
-function drawIcon(N) {
+// fullBleed = true -> opaque square (no rounded transparent corners); required for the
+// App Store 1024 icon, which must have NO alpha channel and NO rounding (iOS masks it).
+function drawIcon(N, fullBleed) {
   const buf = Buffer.alloc(N * N * 4);
   const r = N * 0.225;            // corner radius
   const cx = N * 0.5, cy = N * 0.465;
@@ -38,7 +40,7 @@ function drawIcon(N) {
   for (let y = 0; y < N; y++) {
     for (let x = 0; x < N; x++) {
       const i = (y * N + x) * 4;
-      if (!insideRounded(x + 0.5, y + 0.5)) { buf[i + 3] = 0; continue; }
+      if (!fullBleed && !insideRounded(x + 0.5, y + 0.5)) { buf[i + 3] = 0; continue; }
       const g = (x + y) / (2 * N);
       let col = mix(blue, purple, g);
       const dd = Math.hypot(x - cx, y - cy);
@@ -76,15 +78,22 @@ function chunk(type, data) {
   const crc = Buffer.alloc(4); crc.writeUInt32BE(crc32(body), 0);
   return Buffer.concat([len, body, crc]);
 }
-function encodePNG(N, rgba) {
+function encodePNG(N, rgba, opaque) {
   const sig = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]);
   const ihdr = Buffer.alloc(13);
   ihdr.writeUInt32BE(N, 0); ihdr.writeUInt32BE(N, 4);
-  ihdr[8] = 8; ihdr[9] = 6; ihdr[10] = 0; ihdr[11] = 0; ihdr[12] = 0;
-  const raw = Buffer.alloc(N * (N * 4 + 1));
+  ihdr[8] = 8; ihdr[9] = opaque ? 2 : 6; ihdr[10] = 0; ihdr[11] = 0; ihdr[12] = 0;
+  const ch = opaque ? 3 : 4;
+  const raw = Buffer.alloc(N * (N * ch + 1));
   for (let y = 0; y < N; y++) {
-    raw[y * (N * 4 + 1)] = 0;
-    rgba.copy(raw, y * (N * 4 + 1) + 1, y * N * 4, (y + 1) * N * 4);
+    const rowStart = y * (N * ch + 1);
+    raw[rowStart] = 0; // filter: none
+    for (let x = 0; x < N; x++) {
+      const s = (y * N + x) * 4;
+      const d = rowStart + 1 + x * ch;
+      raw[d] = rgba[s]; raw[d + 1] = rgba[s + 1]; raw[d + 2] = rgba[s + 2];
+      if (!opaque) raw[d + 3] = rgba[s + 3];
+    }
   }
   const idat = zlib.deflateSync(raw, { level: 9 });
   return Buffer.concat([sig, chunk('IHDR', ihdr), chunk('IDAT', idat), chunk('IEND', Buffer.alloc(0))]);
@@ -97,3 +106,8 @@ const outDir = path.join(__dirname, '..', 'icons');
   fs.writeFileSync(path.join(outDir, name), png);
   console.log('wrote', name, png.length, 'bytes');
 });
+
+// App Store / iOS source icon: 1024x1024, opaque, full-bleed (no rounded corners, no alpha)
+const ios = encodePNG(1024, drawIcon(1024, true), true);
+fs.writeFileSync(path.join(outDir, 'icon-1024.png'), ios);
+console.log('wrote icon-1024.png', ios.length, 'bytes');

@@ -5,18 +5,22 @@
   "description": "DON'T TAP THAT — a reflex/psychological tap game for iPhone (web core + Capacitor native wrapper).",
   "scripts": {
     "icons": "node scripts/generate-icons.js",
+    "splash": "node scripts/generate-splash.js",
+    "assets": "npm run icons && npm run splash && cp icons/icon-1024.png assets/icon.png && npx capacitor-assets generate --ios",
     "www": "node scripts/sync-www.js",
     "serve": "node scripts/serve.js",
+    "test": "node scripts/smoke-test.js",
     "ios:add": "npm run www && npx cap add ios",
     "sync": "npm run www && npx cap sync",
     "ios": "npm run www && npx cap sync ios && npx cap open ios"
   },
   "dependencies": {
     "@capacitor/core": "^6.1.2",
-    "@capacitor/ios": "^6.1.2",
-    "@capacitor/haptics": "^6.0.2"
+    "@capacitor/haptics": "^6.0.2",
+    "@capacitor/ios": "^6.1.2"
   },
   "devDependencies": {
+    "@capacitor/assets": "^3.0.5",
     "@capacitor/cli": "^6.1.2"
   }
 }
