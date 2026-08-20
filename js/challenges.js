@@ -72,6 +72,8 @@
   var DEFS = [];
   function def(d) { DEFS.push(d); }
 
+  var BTN_COLORS = ['neutral', 'blue', 'red', 'green', 'yellow', 'purple'];
+
   // 1. TAP ME
   def({
     id: 'tapme', category: 'tap', minScore: 0, baseTime: 1900, minTime: 720,
@@ -79,7 +81,8 @@
       var w = env.rint(140, 200), h = env.rint(90, 130);
       var p = layout(env, 1, w, h)[0];
       env.setInstruction('TAP ME');
-      var b = env.makeBtn({ cls: 'neutral', label: 'TAP ME', w: w, h: h, x: p.x, y: p.y, fs: 26 });
+      var cls = Math.random() < 0.4 ? env.pick(BTN_COLORS) : 'neutral';
+      var b = env.makeBtn({ cls: cls, label: 'TAP ME', w: w, h: h, x: p.x, y: p.y, fs: 26 });
       env.addCleanup(tap(b, function () { env.success(); }));
     }
   });
@@ -92,7 +95,8 @@
       var w = env.rint(150, 210), h = env.rint(100, 140);
       var p = layout(env, 1, w, h)[0];
       env.setInstruction('DON\u2019T TAP ME', { warn: true });
-      var b = env.makeBtn({ cls: 'red', label: 'DON\u2019T TAP ME', w: w, h: h, x: p.x, y: p.y, fs: 22 });
+      var cls = Math.random() < 0.4 ? env.pick(BTN_COLORS) : 'red';
+      var b = env.makeBtn({ cls: cls, label: 'DON\u2019T TAP ME', w: w, h: h, x: p.x, y: p.y, fs: 22 });
       env.addCleanup(tap(b, function () { env.fail('You tapped that.'); }));
     }
   });
@@ -161,7 +165,7 @@
     build: function (env) {
       var w = 200, h = 140;
       var p = layout(env, 1, w, h)[0];
-      var need = 700 + env.difficulty * 500; // ms to hold
+      var need = 400 + env.difficulty * 300; // ms to hold
       env.setInstruction('HOLD');
       var b = env.makeBtn({ cls: 'purple', label: 'HOLD', w: w, h: h, x: p.x, y: p.y, fs: 26 });
       var gauge = document.createElement('div');
@@ -250,18 +254,6 @@
           if (i === winnerIdx) env.success(); else env.fail('Wrong size.');
         }));
       });
-    }
-  });
-
-  // 9. DON'T DO ANYTHING (any touch fails)
-  def({
-    id: 'donothing', category: 'wait', minScore: 4, baseTime: 1500, minTime: 1100,
-    timeoutResult: 'success',
-    build: function (env) {
-      env.setInstruction('DON\u2019T DO ANYTHING', { warn: true });
-      function down(e) { e.preventDefault(); env.fail('You couldn\u2019t resist.'); }
-      env.field.addEventListener('pointerdown', down);
-      env.addCleanup(function () { env.field.removeEventListener('pointerdown', down); });
     }
   });
 
