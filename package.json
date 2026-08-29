@@ -9,6 +9,7 @@
     "assets": "npm run icons && npm run splash && cp icons/icon-1024.png assets/icon.png && npx capacitor-assets generate --ios",
     "www": "node scripts/sync-www.js",
     "serve": "node scripts/serve.js",
+    "deploy": "bash scripts/deploy-aws.sh",
     "test": "node scripts/smoke-test.js",
     "ios:add": "npm run www && npx cap add ios",
     "sync": "npm run www && npx cap sync",

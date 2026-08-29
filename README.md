@@ -2,6 +2,8 @@
 
 **Obey the command. Or don't. That's the game.**
 
+**🎮 Play live: https://d10kns7njmuyxo.cloudfront.net** (AWS S3 + CloudFront — see [`DEPLOY.md`](DEPLOY.md))
+
 A one-thumb, reflex + psychology game for iPhone. The screen shows a command — `TAP ME`, `DON'T TAP BLUE`, `HOLD`, `SWIPE →`, `TAP AFTER IT TURNS GREEN` — and you have about **0.7–2 seconds** to do the right thing. One mistake ends the run. Then you try again. Forever.
 
 The game quietly **learns what you're bad at** and gives you more of it. Two players at score 30 are not playing the same game.
