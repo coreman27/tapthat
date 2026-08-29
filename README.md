@@ -58,7 +58,7 @@ In Xcode: pick your device/simulator and press ▶. To submit to the App Store, 
 | `TAP ME` | tap the button | fail |
 | `DON'T TAP ME` | not touch it | **survive** |
 | `TAP <COLOR>` | tap the matching color | fail |
-| `DON'T TAP <COLOR>` | tap any *other* color | fail |
+| `TAP ANYTHING BUT <COLOR>` | tap any *other* color | fail |
 | `TAP TWICE` | double-tap | fail |
 | `HOLD` | press & hold until full | fail |
 | `SWIPE <DIR>` | swipe that direction | fail |

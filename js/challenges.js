@@ -130,7 +130,7 @@
       if (pool.indexOf(bad) === -1) pool[0] = bad;
       // ensure at least one non-bad exists
       if (pool.every(function (c) { return c === bad; })) pool.push(env.pick(COLORS.filter(function (c) { return c !== bad; })));
-      env.setInstruction('DON\u2019T TAP ' + bad.name, { warn: true });
+      env.setInstruction('TAP ANYTHING BUT ' + bad.name);
       var w = env.rint(90, 120), h = w;
       var pos = layout(env, pool.length, w, h);
       pool.forEach(function (c, i) {
