@@ -6,6 +6,7 @@
   "scripts": {
     "icons": "node scripts/generate-icons.js",
     "splash": "node scripts/generate-splash.js",
+    "og": "sips -s format png -z 630 1200 assets/og-image.svg --out icons/og-image.png",
     "assets": "npm run icons && npm run splash && cp icons/icon-1024.png assets/icon.png && npx capacitor-assets generate --ios",
     "www": "node scripts/sync-www.js",
     "serve": "node scripts/serve.js",
