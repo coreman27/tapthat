@@ -10,6 +10,7 @@ const out = path.join(root, 'www');
 
 const ITEMS = [
   'index.html',
+  'privacy.html',
   'manifest.webmanifest',
   'sw.js',
   'css',

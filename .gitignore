@@ -7,6 +7,9 @@ android/
 # Note: ios/ IS committed (has customized Info.plist + generated icons);
 # its own ios/.gitignore excludes Pods, build, and DerivedData.
 
+# App Store screenshot captures (regenerate from the Simulator)
+store-screenshots/
+
 # macOS
 .DS_Store
 

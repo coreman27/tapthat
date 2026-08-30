@@ -81,13 +81,19 @@ Deployment target: iOS 14+ is fine (Capacitor 6 default).
    - **Subtitle:** e.g. "Obey the command. Or don't."
    - **Category:** Games ▸ Arcade / Puzzle
    - **Description, keywords, support URL, marketing URL**
-   - **Privacy Policy URL** (required — even a simple page)
+   - **Privacy Policy URL** (required — even a simple page) — **live now:** https://d10kns7njmuyxo.cloudfront.net/privacy.html
    - **Age rating** questionnaire
 4. **App Privacy:** the game stores best score + name **locally only** and uses **no analytics, no accounts, no tracking**. Declare "Data Not Collected" (accurate for the current build).
-5. **Screenshots** (required): 6.7" iPhone (1290×2796) and 6.5" (1284×2778). Capture from the Simulator:
+5. **Screenshots** (required): 6.9"/6.7" iPhone is the required slot. A ready-to-upload
+   6.9" hero shot (1320×2868, iPhone 17 Pro Max) is already captured at
+   `store-screenshots/01-home.png`. Capture more gameplay shots from the Simulator
+   (play a run, hit game over, etc.):
    ```bash
-   xcrun simctl io booted screenshot shot.png
+   # the app is already built + installed on the booted iPhone 17 Pro Max sim;
+   # tap through the game, then grab another state:
+   xcrun simctl io booted screenshot store-screenshots/02-gameplay.png
    ```
+   Any earlier size (6.5" 1284×2778) can be captured the same way from an iPhone 11/XS Max sim.
 
 ---
 
@@ -128,13 +134,13 @@ xcrun altool --upload-app -f build/ipa/App.ipa --type ios \
 - [x] Launch screen present
 - [x] Builds & runs on device/Simulator
 - [x] No accounts, no data collection → simplest privacy declaration
-- [ ] Apple Developer account + signing team selected
-- [ ] Privacy Policy URL live
-- [ ] Screenshots captured
-- [ ] Version 1.0.0 / build 1 set
+- [ ] Apple Developer account + signing team selected  *(account enrolled ✅ — select your Team in Xcode ▸ Signing & Capabilities)*
+- [x] Privacy Policy URL live → https://d10kns7njmuyxo.cloudfront.net/privacy.html
+- [~] Screenshots captured *(6.9" hero shot ready in `store-screenshots/`; add gameplay shots)*
+- [x] Version 1.0.0 / build 1 set *(MARKETING_VERSION=1.0.0, CURRENT_PROJECT_VERSION=1)*
 
 ## Common rejection pitfalls (already handled or easy)
 - **Transparent/rounded 1024 icon** → we ship an opaque full-bleed icon. ✅
 - **Crashes on launch** → verified launches in Simulator. ✅
-- **Broken links / privacy policy missing** → add a Privacy Policy URL before submitting.
+- **Broken links / privacy policy missing** → live at https://d10kns7njmuyxo.cloudfront.net/privacy.html (declares "Data Not Collected"). ✅
 - **"App is just a website"** → this is a self-contained game (all logic bundled, works offline), not a web viewer, which satisfies guideline 4.2.

@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Export options for a CLI App Store Connect upload.
+
+  Before using this, set your Apple Developer Team ID below (replace
+  YOUR_TEAM_ID). Find it at https://developer.apple.com/account ▸ Membership,
+  or run:  xcrun xcodebuild -showBuildSettings -workspace App.xcworkspace \
+             -scheme App | grep DEVELOPMENT_TEAM
+
+  Usage (from ios/App, after signing is configured in Xcode):
+    xcodebuild -workspace App.xcworkspace -scheme App -configuration Release \
+      -archivePath build/App.xcarchive archive
+    xcodebuild -exportArchive -archivePath build/App.xcarchive \
+      -exportPath build/ipa -exportOptionsPlist ExportOptions.plist
+-->
+<plist version="1.0">
+<dict>
+    <key>method</key>
+    <string>app-store-connect</string>
+    <key>destination</key>
+    <string>upload</string>
+    <key>teamID</key>
+    <string>YOUR_TEAM_ID</string>
+    <key>signingStyle</key>
+    <string>automatic</string>
+    <key>uploadSymbols</key>
+    <true/>
+    <key>manageAppVersionAndBuildNumber</key>
+    <false/>
+</dict>
+</plist>
