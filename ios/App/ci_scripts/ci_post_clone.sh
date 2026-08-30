@@ -1,22 +1,33 @@
 #!/bin/sh
 
-# ci_post_clone.sh — Xcode Cloud runs this immediately after cloning the repo.
+# ci_post_clone.sh — Xcode Cloud runs this after cloning the repo.
+#
+# LOCATION: Xcode Cloud only detects ci_scripts when it sits in the SAME
+# directory as the Xcode project/workspace. This app's workspace is at
+# ios/App/App.xcworkspace, so this script lives at ios/App/ci_scripts/.
 #
 # This is a Capacitor app: the web build (www/), CocoaPods (ios/App/Pods), and
-# node_modules/ are all gitignored, so a fresh Xcode Cloud checkout is missing
-# everything the Xcode workspace needs. We regenerate them here BEFORE Xcode
-# resolves dependencies and archives the App scheme. If Pods are missing the
-# archive fails with "Unable to open base configuration reference file
-# .../Pods-App.release.xcconfig", so we verify Pods exist before finishing.
+# node_modules/ are gitignored, so a fresh checkout is missing everything the
+# workspace needs. We regenerate them here BEFORE Xcode resolves dependencies
+# and archives. If Pods are missing the archive fails with "Unable to open base
+# configuration reference file .../Pods-App.release.xcconfig", so we verify the
+# Pods xcconfig exists before finishing.
 
 set -ex
 
-# Xcode Cloud runs custom scripts from the ci_scripts/ directory. Prefer the
-# documented repo-root env var, but fall back to ci_scripts/.. so this works
-# regardless of the runner's working directory.
-REPO_ROOT="${CI_PRIMARY_REPOSITORY_PATH:-$(cd "$(dirname "$0")/.." && pwd)}"
+# Resolve the repository root (where package.json lives). Prefer Xcode Cloud's
+# env var; fall back to git; finally walk up from this script's location.
+if [ -n "$CI_PRIMARY_REPOSITORY_PATH" ] && [ -f "$CI_PRIMARY_REPOSITORY_PATH/package.json" ]; then
+  REPO_ROOT="$CI_PRIMARY_REPOSITORY_PATH"
+else
+  SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+  REPO_ROOT="$(cd "$SCRIPT_DIR" && git rev-parse --show-toplevel 2>/dev/null)"
+  if [ -z "$REPO_ROOT" ]; then
+    REPO_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
+  fi
+fi
 cd "$REPO_ROOT"
-echo "Working directory: $(pwd)"
+echo "Repository root: $(pwd)"
 
 echo "-> Node/npm"
 if ! command -v node >/dev/null 2>&1; then
