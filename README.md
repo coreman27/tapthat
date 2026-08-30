@@ -36,7 +36,7 @@ npm run ios:add          # creates the native ios/ Xcode project (first time onl
 npm run ios              # syncs the web build and opens Xcode
 ```
 
-In Xcode: pick your device/simulator and press ▶. To submit to the App Store, set your Team + bundle id (`com.tapthat.game`) and Archive.
+In Xcode: pick your device/simulator and press ▶. To submit to the App Store, set your Team + bundle id (`com.coreyhall.donttapthat`) and Archive.
 
 `npm run ios` runs `sync-www` (assembles `www/`) → `cap sync ios` → `cap open ios`.
 

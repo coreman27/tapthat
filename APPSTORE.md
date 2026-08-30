@@ -4,7 +4,7 @@ The native iOS project already exists in `ios/`, builds cleanly, and runs in the
 
 **App identity (already configured):**
 - App name / display name: **DON'T TAP THAT**
-- Bundle ID: **com.tapthat.game** (`capacitor.config.json` + Xcode)
+- Bundle ID: **com.coreyhall.donttapthat** (`capacitor.config.json` + Xcode)
 - Orientation: portrait only • Status bar hidden • Icons + splash generated
 
 ---
@@ -13,7 +13,7 @@ The native iOS project already exists in `ios/`, builds cleanly, and runs in the
 
 1. **Apple Developer Program** membership — https://developer.apple.com/programs/ ($99/year). Required to ship to the Store.
 2. Xcode signed in with your Apple ID: **Xcode ▸ Settings ▸ Accounts ▸ +**.
-3. Confirm the bundle ID `com.tapthat.game` is available (or change it — see step 5).
+3. Confirm the bundle ID `com.coreyhall.donttapthat` is available (or change it — see step 5).
 
 ---
 
@@ -76,14 +76,14 @@ Deployment target: iOS 14+ is fine (Capacitor 6 default).
 
 1. Go to https://appstoreconnect.apple.com ▸ **Apps ▸ +** ▸ **New App**.
 2. Platform **iOS**, pick the **bundle ID**, set the **SKU** (any unique string, e.g. `donttapthat001`), primary language.
-3. Fill in the listing:
+3. Fill in the listing. **Ready-to-paste AI-positioned copy is in [§6a below](#6a-app-store-listing-copy-ai-positioning).**
    - **Name:** DON'T TAP THAT (must be unique on the Store; have a backup like "Don't Tap That!" ready)
-   - **Subtitle:** e.g. "Obey the command. Or don't."
+   - **Subtitle:** `The AI that learns to beat you`
    - **Category:** Games ▸ Arcade / Puzzle
-   - **Description, keywords, support URL, marketing URL**
+   - **Promotional text, Description, Keywords, support URL, marketing URL** — see §6a
    - **Privacy Policy URL** (required — even a simple page) — **live now:** https://d10kns7njmuyxo.cloudfront.net/privacy.html
    - **Age rating** questionnaire
-4. **App Privacy:** the game stores best score + name **locally only** and uses **no analytics, no accounts, no tracking**. Declare "Data Not Collected" (accurate for the current build).
+4. **App Privacy:** the adaptive AI runs **100% on-device** — it stores your best score, name, and per-category fail stats in local storage only, with **no analytics, no accounts, no tracking, and nothing sent to a server**. Declare "Data Not Collected" (accurate for the current build). *Marketing the app as "AI" does not change this: the learning model is on-device, so no user data leaves the phone.*
 5. **Screenshots** (required): 6.9"/6.7" iPhone is the required slot. A ready-to-upload
    6.9" hero shot (1320×2868, iPhone 17 Pro Max) is already captured at
    `store-screenshots/01-home.png`. Capture more gameplay shots from the Simulator
