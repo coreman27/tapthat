@@ -1,7 +1,7 @@
 {
   "name": "DON'T TAP THAT",
   "short_name": "Don't Tap",
-  "description": "Obey the command. Or don't. A reflex game that learns how to make you fail.",
+  "description": "An AI reflex game that learns about you and serves the exact command you keep failing.",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",

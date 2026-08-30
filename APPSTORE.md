@@ -76,11 +76,11 @@ Deployment target: iOS 14+ is fine (Capacitor 6 default).
 
 1. Go to https://appstoreconnect.apple.com ▸ **Apps ▸ +** ▸ **New App**.
 2. Platform **iOS**, pick the **bundle ID**, set the **SKU** (any unique string, e.g. `donttapthat001`), primary language.
-3. Fill in the listing. **Ready-to-paste AI-positioned copy is in [§6a below](#6a-app-store-listing-copy-ai-positioning).**
+3. Fill in the listing. **Ready-to-paste AI-positioned copy is in [`STORE_LISTING.md`](STORE_LISTING.md).**
    - **Name:** DON'T TAP THAT (must be unique on the Store; have a backup like "Don't Tap That!" ready)
    - **Subtitle:** `The AI that learns to beat you`
    - **Category:** Games ▸ Arcade / Puzzle
-   - **Promotional text, Description, Keywords, support URL, marketing URL** — see §6a
+   - **Promotional text, Description, Keywords, support URL, marketing URL** — see [`STORE_LISTING.md`](STORE_LISTING.md)
    - **Privacy Policy URL** (required — even a simple page) — **live now:** https://d10kns7njmuyxo.cloudfront.net/privacy.html
    - **Age rating** questionnaire
 4. **App Privacy:** the adaptive AI runs **100% on-device** — it stores your best score, name, and per-category fail stats in local storage only, with **no analytics, no accounts, no tracking, and nothing sent to a server**. Declare "Data Not Collected" (accurate for the current build). *Marketing the app as "AI" does not change this: the learning model is on-device, so no user data leaves the phone.*
