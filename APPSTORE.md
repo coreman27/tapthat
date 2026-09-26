@@ -58,6 +58,14 @@ toolchain no longer supports the original iOS 13.0 target. Run `npm run sync`
 after changing the Podfile; do not edit the generated Pods project manually.
 This app now requires iOS 15 or later.
 
+The game keeps portrait-only orientations on iPhone and portrait/upside-down on
+iPad. `UIRequiresFullScreen` is enabled to opt into iPad compatibility mode rather
+than declare support for all four orientations required for multitasking
+(App Store validation error `ITMS-90474`). This key is deprecated as of iPadOS 26,
+but remains supported; newer windowing modes may scale the app in a window rather
+than display it full screen. Supporting native iPad window resizing in the future
+requires adapting and testing the game layout before removing this flag.
+
 ---
 
 ## 4. Test on a real device (recommended before submitting)
