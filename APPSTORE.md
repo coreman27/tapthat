@@ -52,7 +52,11 @@ App target ▸ **General**:
 - **Version** (`CFBundleShortVersionString`): `1.0.0`
 - **Build** (`CFBundleVersion`): `1` (increment every upload)
 
-Deployment target: iOS 14+ is fine (Capacitor 6 default).
+Deployment target: **iOS 15.0** for both Debug and Release. The Podfile also
+enforces a minimum of iOS 15.0 on generated Pods targets because the Xcode Cloud
+toolchain no longer supports the original iOS 13.0 target. Run `npm run sync`
+after changing the Podfile; do not edit the generated Pods project manually.
+This app now requires iOS 15 or later.
 
 ---
 
