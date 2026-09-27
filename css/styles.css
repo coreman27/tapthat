@@ -46,6 +46,7 @@ html, body {
   padding: calc(var(--safe-t) + 16px) 20px calc(var(--safe-b) + 16px);
 }
 .screen.active { display: flex; }
+#screen-home, #screen-over, #screen-how, #screen-store { overflow-y: auto; }
 
 .home-inner {
   margin: auto;
@@ -115,6 +116,18 @@ html, body {
 .link-btn {
   background: none; border: none; color: var(--muted);
   font-size: 15px; text-decoration: underline; cursor: pointer; padding: 6px;
+}
+button:disabled { opacity: 0.55; cursor: default; }
+button:disabled:active { transform: none; }
+.store-inner { gap: 14px; }
+.purchase-status { margin: 0; color: var(--muted); font-size: 14px; }
+.ad-diagnostics { width: 100%; text-align: left; color: var(--muted); font-size: 13px; }
+.ad-diagnostics summary { cursor: pointer; padding: 8px 0; }
+.ad-diagnostics label { display: block; margin: 8px 0; }
+.ad-diagnostics textarea {
+  width: 100%; color: var(--fg); background: var(--bg2);
+  border: 1px solid var(--muted); border-radius: 8px; padding: 8px;
+  user-select: text; -webkit-user-select: text; font-size: 12px;
 }
 
 .best-line { display: flex; gap: 10px; align-items: baseline; color: var(--muted); }

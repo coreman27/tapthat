@@ -4,7 +4,7 @@
  * challenge list) from sticking around after an update.
  * Bump CACHE_VERSION whenever you want to guarantee old caches are purged.
  */
-var CACHE_VERSION = 'v2';
+var CACHE_VERSION = 'v4';
 var CACHE = 'dtt-' + CACHE_VERSION;
 var ASSETS = [
   './',
@@ -17,6 +17,9 @@ var ASSETS = [
   './js/adaptive.js',
   './js/engine.js',
   './js/ui.js',
+  './js/ad-config.js',
+  './js/ad-policy.js',
+  './js/monetization.js',
   './js/main.js',
   './manifest.webmanifest',
   './icons/icon.svg',

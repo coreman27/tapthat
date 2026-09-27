@@ -4,6 +4,12 @@
 
   var el = function (id) { return document.getElementById(id); };
   var challenger = null; // { name, score } if arriving from a friend link
+  var gameActive = false;
+  var storeReturnScreen = 'home';
+  var lastMonetizationMessage = '';
+  var runId = null;
+  var pendingBreak = null;
+  var transitioning = false;
 
   function playerName() {
     var n = (el('playerName').value || Store.name || '').trim();
@@ -17,6 +23,15 @@
   }
 
   function startGame() {
+    if (gameActive || transitioning || Monetization.getState().busy) return;
+    try {
+      runId = Monetization.startRun();
+    } catch (error) {
+      runId = null;
+      reportMonetizationError(error, 'Ad timing is unavailable. You can still play.');
+    }
+    pendingBreak = null;
+    gameActive = true;
     Sound.unlock();
     Store.setName((el('playerName').value || '').trim());
     // Dismiss the keyboard; iOS restores the viewport when dismissal completes.
@@ -28,8 +43,11 @@
   }
 
   function renderGameOver(payload) {
+    if (!gameActive) return;
+    gameActive = false;
     Store.recordGame();
     var score = payload.score;
+    var previousBest = Store.best;
     var isBest = Store.setBest(score);
     refreshBest();
 
@@ -60,6 +78,97 @@
     }
 
     UI.show('over');
+    try {
+      pendingBreak = runId ? Monetization.recordLoss({
+        runId: runId, score: score, previousBest: previousBest,
+        assisted: false, rewardedOffered: false, rewardedUsed: false
+      }) : null;
+    } catch (error) {
+      pendingBreak = null;
+      reportMonetizationError(error, 'Ad timing is unavailable. You can still play.');
+    }
+    renderBreakNotice();
+  }
+
+  function renderBreakNotice() {
+    el('ad-break-notice').classList.toggle('hidden',
+      !pendingBreak || !pendingBreak.eligible || Monetization.getState().adsRemoved);
+  }
+
+  async function leaveGameOver(next) {
+    if (transitioning || Monetization.getState().busy || gameActive) return;
+    transitioning = true;
+    renderMonetization(Monetization.getState());
+    var decision = pendingBreak;
+    pendingBreak = null;
+    try {
+      await Monetization.presentBreak(decision);
+    } catch (error) {
+      reportMonetizationError(error, 'The ad could not be displayed. You can keep playing.');
+    } finally {
+      transitioning = false;
+      renderMonetization(Monetization.getState());
+    }
+    next();
+  }
+
+  function renderAdDiagnostics() {
+    var report = Monetization.getAdReport();
+    el('ad-diagnostics-enabled').checked = report.diagnosticsEnabled;
+    el('ad-diagnostics-report').value = JSON.stringify(report, null, 2);
+    if (report.warning) UI.toast(report.warning, 5000);
+  }
+
+  function reportMonetizationError(error, fallback) {
+    console.error('Monetization operation failed.', error);
+    var message = error && typeof error.message === 'string' ? error.message : fallback;
+    el('purchase-status').textContent = message;
+    UI.toast(message, 5000);
+  }
+
+  function renderMonetization(state) {
+    el('btn-store').classList.toggle('hidden', !state.supported);
+    el('btn-over-store').classList.toggle('hidden', !state.supported || state.adsRemoved);
+    [
+      'btn-play', 'btn-again', 'btn-share', 'btn-home', 'btn-how', 'btn-how-back',
+      'btn-accept', 'btn-skip-challenge', 'btn-store', 'btn-over-store', 'btn-store-back'
+    ].forEach(function (id) { el(id).disabled = state.busy || transitioning; });
+    el('btn-remove-ads').disabled = state.busy || transitioning || !state.ready || state.adsRemoved ||
+      !state.productAvailable || !state.price;
+    el('btn-remove-ads').textContent = state.adsRemoved ? 'ADS REMOVED' :
+      (state.ready && state.productAvailable && state.price ? 'Remove Ads - ' + state.price :
+        (state.ready ? 'Purchase unavailable' : 'Checking App Store...'));
+    el('btn-restore').disabled = state.busy || transitioning || !state.ready;
+    el('btn-privacy-options').classList.toggle('hidden', !state.privacyOptionsRequired);
+    el('btn-privacy-options').disabled = state.busy || !state.ready;
+    el('btn-store-retry').classList.toggle('hidden', state.ready && state.productAvailable && !state.needsConsent);
+    el('btn-store-retry').disabled = state.busy;
+    el('purchase-status').textContent = state.message || (state.busy ? 'Please wait...' :
+      (state.adsRemoved ? 'Ads removed.' : ''));
+    if (state.message && state.message !== lastMonetizationMessage) UI.toast(state.message, 5000);
+    lastMonetizationMessage = state.message;
+    renderBreakNotice();
+  }
+
+  function initializeMonetization() {
+    return Monetization.initialize().catch(function (error) {
+      reportMonetizationError(error, 'Purchases and ads are unavailable. You can still play.');
+    });
+  }
+
+  function showStore(from) {
+    storeReturnScreen = from;
+    UI.show('store');
+  }
+
+  function purchaseAdsRemoval() {
+    Monetization.purchase().then(function (result) {
+      if (result.status === 'purchased') UI.toast('Ads removed. Thank you!');
+      else if (result.status === 'pending') UI.toast('Purchase awaiting approval. Ads stop once Apple confirms it.', 5000);
+      else UI.toast('Purchase cancelled. You have not been charged.');
+    }).catch(function (error) {
+      reportMonetizationError(error, 'Purchase failed. Please try again.');
+    });
   }
 
   function esc(s) {
@@ -90,13 +199,48 @@
 
   function wire() {
     el('btn-play').addEventListener('click', startGame);
-    el('btn-again').addEventListener('click', startGame);
+    el('btn-again').addEventListener('click', function () { leaveGameOver(startGame); });
     el('btn-share').addEventListener('click', doShare);
-    el('btn-home').addEventListener('click', function () { challenger = null; UI.show('home'); refreshBest(); });
-    el('btn-how').addEventListener('click', function () { UI.show('how'); });
+    el('btn-home').addEventListener('click', function () {
+      leaveGameOver(function () { challenger = null; UI.show('home'); refreshBest(); });
+    });
+    el('btn-how').addEventListener('click', function () {
+      UI.show('how');
+      renderAdDiagnostics();
+    });
     el('btn-how-back').addEventListener('click', function () { UI.show('home'); });
     el('btn-accept').addEventListener('click', startGame);
     el('btn-skip-challenge').addEventListener('click', function () { challenger = null; UI.show('home'); });
+    el('btn-store').addEventListener('click', function () { showStore('home'); });
+    el('btn-over-store').addEventListener('click', function () { showStore('over'); });
+    el('btn-store-back').addEventListener('click', function () { UI.show(storeReturnScreen); });
+    el('btn-remove-ads').addEventListener('click', purchaseAdsRemoval);
+    el('btn-restore').addEventListener('click', function () {
+      Monetization.restore().then(function (state) {
+        UI.toast(state.adsRemoved ? 'Purchase restored. Ads are removed.' :
+          'No Remove Ads purchase was found for this Apple Account.', 5000);
+      }).catch(function (error) {
+        reportMonetizationError(error, 'Restore failed. Please try again.');
+      });
+    });
+    el('btn-privacy-options').addEventListener('click', function () {
+      Monetization.privacy().catch(function (error) {
+        reportMonetizationError(error, 'Privacy choices could not be opened. Please try again.');
+      });
+    });
+    el('btn-store-retry').addEventListener('click', initializeMonetization);
+    el('ad-diagnostics-enabled').addEventListener('change', function () {
+      Monetization.setDiagnosticsEnabled(this.checked);
+      renderAdDiagnostics();
+    });
+    el('btn-ad-report').addEventListener('click', renderAdDiagnostics);
+    el('btn-ad-clear').addEventListener('click', function () {
+      Monetization.clearDiagnostics();
+      renderAdDiagnostics();
+    });
+    document.addEventListener('visibilitychange', function () {
+      if (!document.hidden) Monetization.touch();
+    });
 
     // keep name in sync
     el('playerName').addEventListener('change', function () { Store.setName(this.value.trim()); });
@@ -126,6 +270,8 @@
     wire();
 
     if (!handleIncomingChallenge()) UI.show('home');
+    Monetization.onChange(renderMonetization);
+    initializeMonetization().then(renderAdDiagnostics);
 
     // Register service worker for PWA/offline (ignored under file://)
     if ('serviceWorker' in navigator && location.protocol.indexOf('http') === 0) {

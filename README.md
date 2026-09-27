@@ -49,7 +49,31 @@ In Xcode: pick your device/simulator and press ▶. To submit to the App Store, 
 - **Read the command at the top**, then do exactly what it says before the timer bar empties.
 - Sometimes the command is a **DON'T** — the win condition is to *not* act (survive the timer).
 - Success = **+1**. Any mistake (wrong action, wrong target, too slow, or acting when you shouldn't) = **game over**.
-- Score, Best, `TRY AGAIN` — instant retry loop, no interruptions.
+- Score, Best, `TRY AGAIN` — quick retries. The free iOS app schedules occasional
+  interstitials using run cadence and score milestones, with frequency limits.
+  Selected ads appear only when leaving game over, never during a round.
+  An unavailable ad is skipped.
+
+### Ads and Remove Ads (iOS)
+
+The same app offers a one-time **Remove Ads** in-app purchase, not a separate
+paid download or subscription. Open **Remove ads & purchases** on the home
+screen to buy it, restore a purchase, or manage available ad privacy choices.
+Only verified Apple entitlements disable ads; pending/cancelled purchases do not.
+The browser game remains ad-free and does not expose native purchase controls.
+
+**Development defaults to test advertising.** Live AdMob IDs, consent messages,
+the non-consumable App Store product, privacy declarations, and sandbox checks
+must be configured before release. See the monetization section in
+[`APPSTORE.md`](APPSTORE.md). Do not submit the old "Data Not Collected" declaration
+with the advertising-enabled iOS build.
+
+Ad timing is configurable in `js/ad-config.js`: cadence, new-best/near-best
+triggers, onboarding grace, minimum spacing, cooldown, and per-session caps.
+Optional on-device reports are available under **How to play > Local
+ad timing diagnostics**. There is no remote analytics or remote configuration
+service. See **[AD_RULES.md](AD_RULES.md)** for the rules, configuration knobs,
+examples, variant setup, and report interpretation; `APPSTORE.md` covers release setup.
 
 ### Challenge types (17 mechanics, many variations)
 
@@ -112,6 +136,9 @@ tapthat/
 │   ├── adaptive.js         # unlock gating + fail-weighted selection + difficulty
 │   ├── engine.js           # round loop, countdown timer, resolution
 │   ├── ui.js               # screen switching + toast
+│   ├── ad-config.js        # versioned ad timing variants and weights
+│   ├── ad-policy.js        # score-aware placement, caps, local opt-in measurements
+│   ├── monetization.js     # native bridge, deferred ad breaks, purchase state
 │   └── main.js             # bootstrap + wiring
 ├── icons/                  # app icons (SVG + generated PNGs)
 ├── manifest.webmanifest    # PWA (installable, standalone, portrait)
@@ -130,16 +157,30 @@ tapthat/
 ```bash
 npm run icons        # regenerate app icons
 npm run www          # assemble the www/ build (used by Capacitor)
-node scripts/smoke-test.js   # headless tests: builds every challenge, checks resolution, adaptive, share
+npm test          # game smoke tests, ad policy boundaries, diagnostics, purchase/UI integration
 ```
 
 See [`GAME_SPEC.md`](GAME_SPEC.md) for the full design: first 5 minutes, scoring, progression, screens, sounds, monetization, and the 100+ challenge roadmap.
 
 ## Roadmap
 
+**Monetization strategy and release gates:**
+[`MONETIZATION_ROADMAP.md`](MONETIZATION_ROADMAP.md). Retention first: can players
+immediately want one more try? The planned first milestone is Rewarded Continue,
+less frequent interstitials, and a $4.99 one-time Remove Ads purchase. Configurable
+score-aware timing is implemented; Rewarded Continue is still planned.
+
 - [x] Core loop, 17 challenge mechanics, adaptive difficulty
 - [x] Best score, instant retry, friend-challenge links
 - [x] PWA (installable + offline) and Capacitor native scaffold
-- [ ] Cosmetic themes & challenge packs (monetization)
+- [ ] Special challenge packs (optional new game modes)
+- [x] iOS interstitial cadence and one-time Remove Ads purchase integration
+- [ ] Live AdMob / App Store product setup and monetization release validation
+- [ ] Retention baseline and one-more-try measurement
+- [ ] One optional Rewarded Continue per casual run
+- [x] Configurable score-aware ad timing and opt-in local replay diagnostics
+- [ ] Retention-tested interstitial cadence (candidate: every 4-6 terminal runs)
+- [ ] Cosmetic theme shop and game personality packs
 - [ ] Game Center / cloud best scores
 - [ ] Seasonal tournaments & family competitions
+- [ ] Season Pass evaluation after fair weekly events prove retention

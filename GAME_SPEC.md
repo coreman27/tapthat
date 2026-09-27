@@ -8,7 +8,9 @@ A buildable specification: the first five minutes, scoring, progression, screens
 
 1. **Understandable in 5 seconds.** Read a command, obey (or don't), survive.
 2. **One thumb.** Everything reachable with a single hand.
-3. **Instant retry.** Game over → `TRY AGAIN` in under a second. Never interrupt this.
+3. **Fast retry.** Keep `TRY AGAIN` immediately accessible outside clearly signposted
+   between-run ad breaks. Never interrupt active gameplay; reject monetization
+   changes that undermine the desire for one more try.
 4. **It's out to get *you*.** The game learns your specific weaknesses and exploits them.
 5. **Reason to reopen.** Friends, challenges, and "one more to beat my best."
 
@@ -109,12 +111,35 @@ Future (needs a lightweight backend): persistent leaderboards among friends, rem
 
 ## 8. Monetization (without killing the loop)
 
-- **Core game: free.** Never interrupt a run with an ad — that destroys instant-retry.
-- **Remove Ads** (cheap one-time) — if ads exist, only on the Home screen or as an optional "watch to revive once."
-- **Cosmetic themes** — neon, pastel, retro-LCD, dark-mode-plus; button skins; timer-bar styles.
+The phased plan, acceptance criteria, and retention scorecard live in
+[`MONETIZATION_ROADMAP.md`](MONETIZATION_ROADMAP.md). The first target milestone
+is **Rewarded Continue + occasional interstitials + $4.99 one-time Remove Ads**.
+Rewarded Continue is **not implemented yet**. Configurable timing and local
+measurement are implemented as described below. Price changes happen in App Store Connect.
+
+- **Core game: free.** On iOS, select occasional breaks based on completed runs,
+  new bests, or near-best scores, subject to onboarding/cooldown/session limits
+  in `js/ad-config.js`. Preserve the result celebration: a notice announces a
+  possible ad, and it is attempted only on **Try Again** or **Home**. No timer
+  can interrupt the result screen or an active run. Skip unavailable/stale
+  opportunities rather than catching up later. The browser game has no native ads.
+- **Measure locally first.** Opt-in bounded on-device reports compare placement
+  reasons, actual ad exposure, and replay timing. Do not equate a selected
+  opportunity with an impression or a single-device report with population retention.
+- **Remove Ads** — one-time Apple non-consumable purchase in the same app, with
+  Restore Purchases and verified entitlement updates. Pending/cancelled purchases
+  do not remove ads; refunds/revocations remove the entitlement.
+- **Privacy** — request ads only after the native consent flow permits them,
+  provide privacy choices when required, and update App Store data disclosures.
+- **Development** — use Google's test ads; live identifiers, product metadata,
+  purchase pricing, consent setup, and release checks are configured separately.
+- **Cosmetic themes and personalities** — original skins, dialogue, animations,
+  and sound packs with unchanged game rules and legibility.
 - **Challenge packs** — themed command sets (e.g., "Emoji Chaos," "Math Mode," "Rhythm").
 - **Family / friends competition** — seasonal tournaments, group leaderboards.
 - **Seasonal events** — limited-time challenge types + cosmetics.
+- **Season Pass (later)** — optional exhibition tournaments, cosmetics, badges,
+  and historical stats; never paid advantages in shared ranked competition.
 
 ---
 

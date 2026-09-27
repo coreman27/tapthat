@@ -38,7 +38,46 @@ BUCKET=tapthat-game-1788042934 DIST_ID=E2XJJ61LKTCHVW npm run deploy
 5. `aws cloudfront create-distribution …` with `DefaultRootObject=index.html`, OAC origin, `redirect-to-https`, and a 403→`/index.html` custom error response.
 6. `aws s3api put-bucket-policy …` allowing `cloudfront.amazonaws.com` for this distribution ARN only.
 
+## Custom domain — donttapthat.com
+
+The domain `donttapthat.com` is registered at **Namecheap** (nameservers
+`dns1.registrar-servers.com` / `dns2.registrar-servers.com`), so DNS records are
+managed in Namecheap's **Advanced DNS** panel, not Route 53.
+
+An ACM certificate (us-east-1, required by CloudFront) covering
+`donttapthat.com` + `www.donttapthat.com` has been requested:
+
+| | Value |
+|---|---|
+| Certificate ARN | `arn:aws:acm:us-east-1:981207388221:certificate/5e6f8b80-ac82-4fb4-8138-65545179e65c` |
+| CloudFront distribution | `E2XJJ61LKTCHVW` (`d10kns7njmuyxo.cloudfront.net`) |
+
+### Step 1 — add DNS records at Namecheap (Advanced DNS)
+
+Enter Host values **without** the trailing `.donttapthat.com` (Namecheap appends the domain automatically):
+
+| Type | Host | Value | Purpose |
+|---|---|---|---|
+| CNAME | `_d010c222562a6b5f439732d8694cccab` | `_a8b8fdd7a131df3a8dedf52e5f733cd3.wzccmgtwzk.acm-validations.aws.` | ACM validation (apex) |
+| CNAME | `_b3ac0890666b104db9f549311f9277d3.www` | `_479876990ef92b924ccd93efdfe972a8.wzccmgtwzk.acm-validations.aws.` | ACM validation (www) |
+| ALIAS (or CNAME) | `@` | `d10kns7njmuyxo.cloudfront.net.` | Point apex at CloudFront |
+| CNAME | `www` | `d10kns7njmuyxo.cloudfront.net.` | Point www at CloudFront |
+
+Remove the default Namecheap parking / URL-redirect records for `@` and `www` first.
+
+### Step 2 — finish the setup
+
+Once the records are saved, run:
+
+```bash
+cd tapthat
+./scripts/finish-domain.sh
+```
+
+It waits for ACM to issue the cert, then attaches both domains + the cert to the
+CloudFront distribution. After CloudFront redeploys (~5–15 min) and DNS
+propagates, `https://donttapthat.com` and `https://www.donttapthat.com` serve the game.
+
 ## Optional next steps
 
-- **Custom domain:** register/point a domain (Route 53 or elsewhere), request an ACM cert **in us-east-1**, add it + the domain as a CloudFront Alternate Domain Name (CNAME).
 - **CI/CD:** run `npm run deploy` from a GitHub Action on push to `main` (store AWS creds as repo secrets, ideally a scoped IAM user — not root).

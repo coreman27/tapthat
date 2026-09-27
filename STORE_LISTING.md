@@ -38,26 +38,38 @@ The longer you play, the smarter it gets and the more personal it feels. It's no
 WHY YOU'LL KEEP TAPPING
 - AI that adapts to your reflexes in real time and targets your weakness
 - 17+ challenge types: tap, don't-tap, color, Stroop, swipe, hold, wait, catch, bait-and-switch, and more
-- Instant retry: game over to next run in under a second
+- Quick retries, with occasional ad breaks between runs
 - Difficulty that ramps as fast as you do
-- Challenge a friend: send a link, they tap it, they play instantly, no account, no install
+- Optional one-time Remove Ads purchase, with Restore Purchases for your Apple Account
 
-PRIVATE BY DESIGN
-The AI runs entirely on your device. No accounts, no sign-up, no tracking, no ads. Your scores and play stats never leave your phone.
+ON-DEVICE GAMEPLAY
+Adaptive difficulty runs entirely on your device. No game account or sign-up is required. The free iOS version includes advertising. Remove Ads is a one-time in-app purchase, not a subscription. Core gameplay works offline. See our privacy policy for advertising and purchase data practices.
 
 How long can you last against a game that learns exactly how to make you fail?
 ```
 
 ## What's New (v1.0.0)
 ```
-First release: the AI-powered reflex game that learns your weakness and uses it against you.
+Adaptive reflex challenges, occasional ads between games, and an optional one-time Remove Ads purchase with purchase restoration.
 ```
 
 ## App Review note
 The "AI" is a genuine on-device adaptive model (per-category fail-rate weighting +
 difficulty scaling in `js/adaptive.js`), not a marketing veneer over a random picker.
-Keep the copy honest to that. No cloud model, no data collection — so the
-"Data Not Collected" privacy declaration remains accurate.
+Keep the copy honest to that. No cloud model is used, but Google Mobile Ads has
+its own data practices: **"Data Not Collected" is no longer an accurate blanket
+declaration for the monetized iOS build.** Complete the release checklist in
+`APPSTORE.md` before using this copy. Do not submit test ads or an unconfigured
+purchase product.
+
+Reviewers can open **Remove ads & purchases** on the home screen, purchase
+**Remove Ads**, or choose **Restore Purchases**. A configurable policy selects
+breaks based on completed runs and new-best/near-best milestones with frequency
+limits. A notice appears on game over; a ready ad is attempted only when choosing
+**Try Again** or **Home**, not over the score celebration. No ad appears mid-round.
+If an ad is unavailable
+or consent does not permit ads, the game skips that break. An active verified
+Remove Ads purchase suppresses all interstitials.
 
 ## Suggested metadata alignment (optional, keeps the whole app on-message)
 - `manifest.webmanifest` → `description`: "An AI reflex game that learns about you and serves the exact command you keep failing."
