@@ -99,6 +99,26 @@ examples, variant setup, and report interpretation; `APPSTORE.md` covers release
 
 New challenge types unlock as your score climbs (see `minScore` in `js/challenges.js`).
 
+### Weekly challenge
+
+`WEEKLY CHALLENGE` on the home screen plays a fixed sequence that is the same for
+every player that week (`js/weekly.js`). Weeks are ISO-8601 in UTC, so everyone
+resets at the same moment (Monday 00:00 UTC). Fairness rules:
+
+- Each round gets its own seeded generator (`weekId + round number`), so a round's
+  values never depend on how many random numbers an earlier round used.
+- Adaptive weighting is off (`Adaptive.pickNext(..., { fixed: true })`); difficulty
+  depends only on score, not on personal fail history.
+- All gameplay randomness must go through `Challenges.rand()`. Do not add
+  `Math.random()` to challenge code; `scripts/weekly.test.js` fails if you do.
+- The weekly best is stored separately (`Store.weeklyBest`) and resets each week.
+  Layout positions scale to the screen size, but the commands and timing match.
+
+Sharing a weekly score uses the same `#c=` link with an extra `w` field. A friend
+who opens it in the same week plays that sequence and gets a head-to-head result;
+after the week ends the link just says it has ended. Scores are local and shared by
+link only, so they are not verified. Shared leaderboards need a backend (roadmap Phase 4).
+
 ### Touch input
 
 The game screen owns touch gestures (`touch-action: none`) so WebKit does not
@@ -182,5 +202,7 @@ score-aware timing is implemented; Rewarded Continue is still planned.
 - [ ] Retention-tested interstitial cadence (candidate: every 4-6 terminal runs)
 - [ ] Cosmetic theme shop and game personality packs
 - [ ] Game Center / cloud best scores
+- [x] Weekly challenge: seeded sequence, weekly best, share-link head-to-head (no backend)
+- [ ] Weekly leaderboards and friend groups (needs a backend)
 - [ ] Seasonal tournaments & family competitions
 - [ ] Season Pass evaluation after fair weekly events prove retention

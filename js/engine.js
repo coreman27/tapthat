@@ -4,6 +4,7 @@
 
   var field, instrEl, timerFill, notifLayer, screenGame, scoreEl;
   var score = 0, lastId = null, running = false;
+  var weeklyId = null, round = 0; // weeklyId set => seeded weekly run
   var cleanups = [];
   var raf = 0, timerStart = 0, timerLimit = 0, tickedAt = 0;
   var resolved = false;
@@ -76,9 +77,11 @@
       screenGame.classList.remove('flash-good');
       screenGame.classList.add('flash-bad');
       running = false;
+      var finished = weeklyId;
+      Challenges.setRng(null);
       setTimeout(function () {
         screenGame.classList.remove('flash-bad');
-        onGameOver({ score: score, reason: reason || 'Game over.', category: category });
+        onGameOver({ score: score, reason: reason || 'Game over.', category: category, weeklyId: finished });
       }, 260);
     } else {
       score += 1;
@@ -97,7 +100,13 @@
 
   function nextRound() {
     resolved = false;
-    var def = Adaptive.pickNext(score, lastId);
+    var rng = null;
+    if (weeklyId) {
+      rng = Weekly.rngFor(weeklyId, round);
+      Challenges.setRng(rng);
+    }
+    round += 1;
+    var def = Adaptive.pickNext(score, lastId, weeklyId ? { rand: rng, fixed: true } : null);
     lastId = def.id;
     Store.recordPlay(def.category);
     var limit = Adaptive.timeLimit(def, score);
@@ -135,9 +144,13 @@
     });
   }
 
-  function start() {
+  // opts.weeklyId: play the deterministic sequence for that week (e.g. "2026-W40").
+  function start(opts) {
     score = 0;
     lastId = null;
+    round = 0;
+    weeklyId = (opts && opts.weeklyId) || null;
+    Challenges.setRng(null);
     running = true;
     resolved = false;
     onUpdate(0);
@@ -149,7 +162,7 @@
     setTimeout(function () { if (running) nextRound(); }, 550);
   }
 
-  function stop() { running = false; stopTimer(); clearField(); }
+  function stop() { running = false; stopTimer(); clearField(); Challenges.setRng(null); }
 
   global.Engine = {
     init: init,

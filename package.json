@@ -11,7 +11,7 @@
     "www": "node scripts/sync-www.js",
     "serve": "node scripts/serve.js",
     "deploy": "bash scripts/deploy-aws.sh",
-    "test": "node scripts/smoke-test.js && node --test scripts/monetization.test.js scripts/ad-policy.test.js",
+    "test": "node scripts/smoke-test.js && node --test scripts/monetization.test.js scripts/ad-policy.test.js scripts/weekly.test.js",
     "ios:add": "npm run www && npx cap add ios",
     "sync": "npm run www && npx cap sync",
     "ios": "npm run www && npx cap sync ios && npx cap open ios"

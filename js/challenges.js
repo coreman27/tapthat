@@ -21,12 +21,17 @@
     { name: 'PURPLE', cls: 'purple' }
   ];
 
-  function rint(a, b) { return a + Math.floor(Math.random() * (b - a + 1)); }
-  function pick(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+  // All challenge randomness goes through rand() so weekly mode can swap in a seeded generator.
+  var currentRng = null;
+  function rand() { return currentRng ? currentRng() : Math.random(); }
+  function setRng(fn) { currentRng = typeof fn === 'function' ? fn : null; }
+
+  function rint(a, b) { return a + Math.floor(rand() * (b - a + 1)); }
+  function pick(arr) { return arr[Math.floor(rand() * arr.length)]; }
   function shuffle(arr) {
     var a = arr.slice();
     for (var i = a.length - 1; i > 0; i--) {
-      var j = Math.floor(Math.random() * (i + 1));
+      var j = Math.floor(rand() * (i + 1));
       var t = a[i]; a[i] = a[j]; a[j] = t;
     }
     return a;
@@ -81,7 +86,7 @@
       var w = env.rint(140, 200), h = env.rint(90, 130);
       var p = layout(env, 1, w, h)[0];
       env.setInstruction('TAP ME');
-      var cls = Math.random() < 0.4 ? env.pick(BTN_COLORS) : 'neutral';
+      var cls = rand() < 0.4 ? env.pick(BTN_COLORS) : 'neutral';
       var b = env.makeBtn({ cls: cls, label: 'TAP ME', w: w, h: h, x: p.x, y: p.y, fs: 26 });
       env.addCleanup(tap(b, function () { env.success(); }));
     }
@@ -95,7 +100,7 @@
       var w = env.rint(150, 210), h = env.rint(100, 140);
       var p = layout(env, 1, w, h)[0];
       env.setInstruction('DON\u2019T TAP ME', { warn: true });
-      var cls = Math.random() < 0.4 ? env.pick(BTN_COLORS) : 'red';
+      var cls = rand() < 0.4 ? env.pick(BTN_COLORS) : 'red';
       var b = env.makeBtn({ cls: cls, label: 'DON\u2019T TAP ME', w: w, h: h, x: p.x, y: p.y, fs: 22 });
       env.addCleanup(tap(b, function () { env.fail('You tapped that.'); }));
     }
@@ -242,13 +247,13 @@
   def({
     id: 'tapsize', category: 'size', minScore: 4, baseTime: 1800, minTime: 800,
     build: function (env) {
-      var smaller = Math.random() < 0.5;
+      var smaller = rand() < 0.5;
       env.setInstruction('TAP THE ' + (smaller ? 'SMALLER' : 'BIGGER') + ' ONE');
       var big = env.rint(140, 180), small = env.rint(70, 95);
       var pos = layout(env, 2, big, big);
       var sizes = [big, small];
       // shuffle which index is big
-      var bigFirst = Math.random() < 0.5;
+      var bigFirst = rand() < 0.5;
       var arr = bigFirst ? [big, small] : [small, big];
       var winnerIdx = smaller ? arr.indexOf(small) : arr.indexOf(big);
       arr.forEach(function (sz, i) {
@@ -329,8 +334,8 @@
       var w = 110, h = 110;
       var x = (env.fw - w) / 2, y = (env.fh - h) / 2;
       var b = env.makeBtn({ cls: 'green', label: 'CATCH', w: w, h: h, x: x, y: y, fs: 22 });
-      var vx = (Math.random() < 0.5 ? -1 : 1) * (2 + env.difficulty * 2);
-      var vy = (Math.random() < 0.5 ? -1 : 1) * (2 + env.difficulty * 2);
+      var vx = (rand() < 0.5 ? -1 : 1) * (2 + env.difficulty * 2);
+      var vy = (rand() < 0.5 ? -1 : 1) * (2 + env.difficulty * 2);
       var px = -999, py = -999;
       function move(e) { px = e.clientX; py = e.clientY; }
       env.field.addEventListener('pointermove', move);
@@ -375,8 +380,8 @@
         }));
         return {
           el: b, x: pos[i].x, y: pos[i].y,
-          vx: (Math.random() < 0.5 ? -1 : 1) * (1.5 + env.difficulty * 2.5),
-          vy: (Math.random() < 0.5 ? -1 : 1) * (1.5 + env.difficulty * 2.5)
+          vx: (rand() < 0.5 ? -1 : 1) * (1.5 + env.difficulty * 2.5),
+          vy: (rand() < 0.5 ? -1 : 1) * (1.5 + env.difficulty * 2.5)
         };
       });
       var raf = 0;
@@ -480,6 +485,8 @@
     DEFS: DEFS,
     rint: rint,
     pick: pick,
-    shuffle: shuffle
+    shuffle: shuffle,
+    rand: rand,
+    setRng: setRng
   };
 })(window);

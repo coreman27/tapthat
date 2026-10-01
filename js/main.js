@@ -22,8 +22,28 @@
     el('hud-best').textContent = Store.best;
   }
 
-  function startGame() {
+  var runOpts = null; // { weeklyId } for the current/last run; null means a normal run
+
+  function weeklyStatus() {
+    var id = Weekly.weekId();
+    var best = Store.weeklyBest(id);
+    return 'Week ' + parseInt(id.split('-W')[1], 10) + ' • ' +
+      (best ? 'your best ' + best : 'not played yet') + ' • new commands in ' +
+      Weekly.resetLabel(Weekly.msUntilReset());
+  }
+
+  function refreshWeekly() {
+    el('weekly-line').textContent = weeklyStatus();
+  }
+
+  function startGame() { beginRun(null); }
+  function startWeekly() { beginRun({ weeklyId: Weekly.weekId() }); }
+  // Try Again keeps the current mode; a weekly run rolls over to the new week if it changed.
+  function replay() { if (runOpts && runOpts.weeklyId) startWeekly(); else startGame(); }
+
+  function beginRun(opts) {
     if (gameActive || transitioning || Monetization.getState().busy) return;
+    runOpts = opts || null;
     try {
       runId = Monetization.startRun();
     } catch (error) {
@@ -39,7 +59,7 @@
     if (nameInput) nameInput.blur();
     if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
     UI.show('game');
-    Engine.start();
+    Engine.start(runOpts);
   }
 
   function renderGameOver(payload) {
@@ -47,18 +67,31 @@
     gameActive = false;
     Store.recordGame();
     var score = payload.score;
-    var previousBest = Store.best;
-    var isBest = Store.setBest(score);
+    var weeklyId = payload.weeklyId || null;
+    var previousBest, isBest;
+    if (weeklyId) {
+      previousBest = Store.weeklyBest(weeklyId);
+      isBest = Store.recordWeekly(weeklyId, score) && score > 0;
+    } else {
+      previousBest = Store.best;
+      isBest = Store.setBest(score);
+    }
     refreshBest();
+    refreshWeekly();
 
     el('over-reason').textContent = payload.reason || 'Game over.';
     el('final-score').textContent = score;
-    el('final-best').textContent = Store.best;
+    el('final-best').textContent = weeklyId ? Store.weeklyBest(weeklyId) : Store.best;
+    el('over-mode').textContent = weeklyId ? 'Weekly challenge • week ' + parseInt(weeklyId.split('-W')[1], 10) : '';
+    el('over-mode').classList.toggle('hidden', !weeklyId);
+    el('new-best').textContent = weeklyId ? 'NEW WEEKLY BEST!' : 'NEW BEST!';
     el('new-best').classList.toggle('hidden', !isBest);
     if (isBest && score > 0) Sound.best();
 
     var versus = el('versus');
-    if (challenger) {
+    // A friend's weekly score only compares against a run of that same week's sequence.
+    var comparable = challenger && (challenger.weekId || null) === weeklyId;
+    if (comparable) {
       var you = score, them = challenger.score;
       var html;
       if (you > them) {
@@ -130,7 +163,7 @@
     el('btn-store').classList.toggle('hidden', !state.supported);
     el('btn-over-store').classList.toggle('hidden', !state.supported || state.adsRemoved);
     [
-      'btn-play', 'btn-again', 'btn-share', 'btn-home', 'btn-how', 'btn-how-back',
+      'btn-play', 'btn-weekly', 'btn-again', 'btn-share', 'btn-home', 'btn-how', 'btn-how-back',
       'btn-accept', 'btn-skip-challenge', 'btn-store', 'btn-over-store', 'btn-store-back'
     ].forEach(function (id) { el(id).disabled = state.busy || transitioning; });
     el('btn-remove-ads').disabled = state.busy || transitioning || !state.ready || state.adsRemoved ||
@@ -178,9 +211,10 @@
   }
 
   function doShare() {
-    var score = Math.max(Store.best | 0, Engine.getScore() | 0);
+    var weeklyId = runOpts && runOpts.weeklyId ? runOpts.weeklyId : null;
+    var score = Math.max((weeklyId ? Store.weeklyBest(weeklyId) : Store.best) | 0, Engine.getScore() | 0);
     var name = playerName();
-    Share.share(name, score).then(function (res) {
+    Share.share(name, score, weeklyId).then(function (res) {
       if (res.canceled) return;
       if (res.method === 'clipboard') UI.toast('Challenge link copied \u2014 paste it in a text!');
       else if (!res.ok) UI.toast('Link ready: ' + res.url);
@@ -190,16 +224,25 @@
   function handleIncomingChallenge() {
     var incoming = Share.readIncoming();
     if (!incoming) return false;
-    challenger = incoming;
     Share.clearIncoming();
-    el('challenge-title').textContent = incoming.name + ' survived ' + incoming.score + ' commands.';
+    if (incoming.weekId && incoming.weekId !== Weekly.weekId()) {
+      // That weekly sequence is over; scores from it can't be matched this week.
+      UI.show('home');
+      UI.toast('That weekly challenge has ended. This week has new commands!', 5000);
+      return true;
+    }
+    challenger = incoming;
+    el('challenge-title').textContent = incoming.weekId
+      ? incoming.name + ' survived ' + incoming.score + ' commands in this week’s challenge.'
+      : incoming.name + ' survived ' + incoming.score + ' commands.';
     UI.show('challenge');
     return true;
   }
 
   function wire() {
     el('btn-play').addEventListener('click', startGame);
-    el('btn-again').addEventListener('click', function () { leaveGameOver(startGame); });
+    el('btn-again').addEventListener('click', function () { leaveGameOver(replay); });
+    el('btn-weekly').addEventListener('click', startWeekly);
     el('btn-share').addEventListener('click', doShare);
     el('btn-home').addEventListener('click', function () {
       leaveGameOver(function () { challenger = null; UI.show('home'); refreshBest(); });
@@ -209,7 +252,9 @@
       renderAdDiagnostics();
     });
     el('btn-how-back').addEventListener('click', function () { UI.show('home'); });
-    el('btn-accept').addEventListener('click', startGame);
+    el('btn-accept').addEventListener('click', function () {
+      if (challenger && challenger.weekId) startWeekly(); else startGame();
+    });
     el('btn-skip-challenge').addEventListener('click', function () { challenger = null; UI.show('home'); });
     el('btn-store').addEventListener('click', function () { showStore('home'); });
     el('btn-over-store').addEventListener('click', function () { showStore('over'); });
@@ -239,7 +284,7 @@
       renderAdDiagnostics();
     });
     document.addEventListener('visibilitychange', function () {
-      if (!document.hidden) Monetization.touch();
+      if (!document.hidden) { Monetization.touch(); refreshWeekly(); }
     });
 
     // keep name in sync
@@ -267,6 +312,7 @@
 
     el('playerName').value = Store.name || '';
     refreshBest();
+    refreshWeekly();
     wire();
 
     if (!handleIncomingChallenge()) UI.show('home');

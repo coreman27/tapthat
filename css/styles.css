@@ -130,6 +130,8 @@ button:disabled:active { transform: none; }
   user-select: text; -webkit-user-select: text; font-size: 12px;
 }
 
+.weekly-line { margin: 0; color: var(--muted); font-size: 14px; letter-spacing: 0.02em; }
+.weekly-line:empty { display: none; }
 .best-line { display: flex; gap: 10px; align-items: baseline; color: var(--muted); }
 .best-line strong { color: var(--fg); font-size: 22px; }
 

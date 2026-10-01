@@ -22,7 +22,9 @@
       muted: false,
       // adaptive: per-category play/fail counts
       stats: {},
-      games: 0
+      games: 0,
+      // weekly challenge: only the current week is kept; { id, best, plays }
+      weekly: { id: '', best: 0, plays: 0 }
     };
   }
 
@@ -48,6 +50,25 @@
     },
 
     recordGame: function () { state.games += 1; save(); },
+
+    // weekly challenge (separate from the normal best)
+    weeklyBest: function (id) {
+      var w = state.weekly;
+      return w && w.id === id ? (w.best | 0) : 0;
+    },
+    weeklyPlays: function (id) {
+      var w = state.weekly;
+      return w && w.id === id ? (w.plays | 0) : 0;
+    },
+    recordWeekly: function (id, score) {
+      var w = state.weekly;
+      if (!w || w.id !== id) w = state.weekly = { id: id, best: 0, plays: 0 };
+      w.plays += 1;
+      var isBest = score > w.best;
+      if (isBest) w.best = score;
+      save();
+      return isBest;
+    },
 
     // adaptive tracking
     recordPlay: function (category) {

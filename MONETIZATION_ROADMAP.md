@@ -329,6 +329,11 @@ Candidates: **Emoji Chaos, Math Mode, Rhythm, Memory Tricks, and Gesture Lab**.
 
 ## Phase 4 - Family/friend competition and weekly tournaments
 
+**Status:** the client half of Story 4.2 is built: a deterministic weekly challenge
+(seeded per round, adaptive weighting off, separate weekly best, share-link
+head-to-head, covered by `scripts/weekly.test.js`). Not built: the backend, verified
+scores, leaderboards, and friend groups. Links are still not authoritative proof.
+
 ### Story 4.1 - Reliable private rematches
 
 - [ ] First verify native share links use the public HTTPS game URL rather than

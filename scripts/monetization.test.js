@@ -305,7 +305,12 @@ test('UI preserves celebration, passes previous best, and prevents double-tap re
     Store: {
       name: '', best: 20, setName() {},
       setBest(score) { const isBest = score > this.best; if (isBest) this.best = score; return isBest; },
-      recordGame() { records++; }
+      recordGame() { records++; },
+      weeklyBest() { return 0; }, recordWeekly() { return false; }
+    },
+    Weekly: {
+      weekId: () => '2026-W40', msUntilReset: () => 3 * 86400000,
+      resetLabel: () => '3d 0h', isWeekId: () => true
     },
     UI: { register() {}, show(value) { screen = value; }, toast() {} },
     Sound: { unlock() {}, best() {} },

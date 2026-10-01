@@ -17,7 +17,11 @@
     return 1 + rate * 4 + Math.min(s.fails, 6) * 0.35;
   }
 
-  function pickNext(score, lastId) {
+  // opts.fixed: ignore the player's fail history so everyone gets the same selection odds
+  // (weekly mode). opts.rand: random source (a seeded generator in weekly mode).
+  function pickNext(score, lastId, opts) {
+    var rand = (opts && opts.rand) || Math.random;
+    var fixed = !!(opts && opts.fixed);
     var pool = unlocked(score);
     if (pool.length === 0) pool = [Challenges.DEFS[0]];
 
@@ -33,9 +37,9 @@
       if (basics.length) candidates = basics;
     }
 
-    var weights = candidates.map(weightFor);
+    var weights = candidates.map(function (d) { return fixed ? 1 : weightFor(d); });
     var total = weights.reduce(function (a, b) { return a + b; }, 0);
-    var r = Math.random() * total;
+    var r = rand() * total;
     for (var i = 0; i < candidates.length; i++) {
       r -= weights[i];
       if (r <= 0) return candidates[i];

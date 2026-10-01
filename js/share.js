@@ -2,8 +2,9 @@
 (function (global) {
   'use strict';
 
-  function encodeChallenge(name, score) {
+  function encodeChallenge(name, score, weekId) {
     var payload = { n: (name || 'A friend').slice(0, 14), s: score | 0 };
+    if (weekId && global.Weekly && global.Weekly.isWeekId(weekId)) payload.w = weekId;
     var json = JSON.stringify(payload);
     // URL-safe base64
     var b64 = btoa(unescape(encodeURIComponent(json)))
@@ -18,7 +19,8 @@
       var json = decodeURIComponent(escape(atob(b64)));
       var obj = JSON.parse(json);
       if (typeof obj.s !== 'number') return null;
-      return { name: obj.n || 'A friend', score: obj.s | 0 };
+      var weekId = global.Weekly && global.Weekly.isWeekId(obj.w) ? obj.w : null;
+      return { name: obj.n || 'A friend', score: obj.s | 0, weekId: weekId };
     } catch (e) {
       return null;
     }
@@ -46,8 +48,8 @@
     return PUBLIC_BASE;
   }
 
-  function buildUrl(name, score) {
-    return shareBase() + '#c=' + encodeChallenge(name, score);
+  function buildUrl(name, score, weekId) {
+    return shareBase() + '#c=' + encodeChallenge(name, score, weekId);
   }
 
   function readIncoming() {
@@ -84,9 +86,11 @@
     return (e && e.name === 'AbortError') || /cancel|abort|dismiss/i.test(msg);
   }
 
-  function share(name, score) {
-    var webUrl = buildUrl(name, score);
-    var text = (name || 'I') + ' survived ' + score + ' commands in DON\u2019T TAP THAT. Can you beat that?';
+  function share(name, score, weekId) {
+    var webUrl = buildUrl(name, score, weekId);
+    var text = weekId
+      ? (name || 'I') + ' survived ' + score + ' commands in the DON\u2019T TAP THAT weekly challenge (' + weekId + '). Same commands for everyone \u2014 can you beat that?'
+      : (name || 'I') + ' survived ' + score + ' commands in DON\u2019T TAP THAT. Can you beat that?';
 
     // Native iOS/Android: open the real system share sheet (Copy, Messages, etc.).
     // Send friends to the App Store (never the web build). The App Store URL can't
