@@ -119,6 +119,26 @@ who opens it in the same week plays that sequence and gets a head-to-head result
 after the week ends the link just says it has ended. Scores are local and shared by
 link only, so they are not verified. Shared leaderboards need a backend (roadmap Phase 4).
 
+### Themes (preview)
+
+`Themes` on the home screen opens a picker with Classic plus three cosmetic themes:
+Neon Arcade, Hacker Terminal and Space Station (`js/themes.js`, token blocks at the
+end of `css/styles.css`). Rules, enforced by `scripts/themes.test.js`:
+
+- Presentation only: a theme sets `data-theme` on `<html>` and changes backdrop,
+  text, panels, accent colors and font. It must not change hitboxes or timing.
+- The five gameplay colors (`--red`, `--green`, `--blue`, `--yellow`, `--purple`)
+  are never overridden, so "TAP RED" means the same thing in every theme.
+- Every theme must keep body text at 7:1 contrast, muted text at 4.5:1, and every
+  gameplay color at 3:1 against its background.
+- A saved theme that is unknown or no longer usable falls back to Classic.
+
+**Release gate:** purchases are not wired yet. `PREVIEW_ALL = true` in `js/themes.js`
+makes every theme free to try. Before shipping, theme unlocks must be verified,
+restorable non-consumable StoreKit products (the native purchase code currently
+supports a single product), `entitled()` must read them, and `PREVIEW_ALL` must be
+false. Until then keep `ENABLED = false` in release builds.
+
 ### Touch input
 
 The game screen owns touch gestures (`touch-action: none`) so WebKit does not

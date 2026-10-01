@@ -11,11 +11,21 @@
   --yellow: #f5c518;
   --red: #ff3b46;
   --purple: #a855f7;
+  /* Theme surface tokens (see js/themes.js). The five gameplay colors above must
+     never be overridden by a theme: commands like "TAP RED" depend on them. */
+  --bg-glow: #1c1c2e;
+  --line: #2a2a3d;
+  --line2: #2f2f45;
+  --panel: #1d1d2b;
+  --panel2: #23233a;
+  --title-glow: none;
+  --font: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", Roboto, system-ui, sans-serif;
   --safe-t: env(safe-area-inset-top, 0px);
   --safe-b: env(safe-area-inset-bottom, 0px);
 }
 
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+button, input { font-family: inherit; }
 
 html, body {
   margin: 0;
@@ -24,7 +34,7 @@ html, body {
   overflow: hidden;
   background: var(--bg);
   color: var(--fg);
-  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", Roboto, system-ui, sans-serif;
+  font-family: var(--font);
   -webkit-user-select: none;
   user-select: none;
   touch-action: manipulation;
@@ -34,7 +44,7 @@ html, body {
 #app {
   position: fixed;
   inset: 0;
-  background: radial-gradient(120% 90% at 50% -10%, #1c1c2e 0%, var(--bg) 60%);
+  background: radial-gradient(120% 90% at 50% -10%, var(--bg-glow) 0%, var(--bg) 60%);
 }
 
 /* ---------- Screens ---------- */
@@ -65,6 +75,7 @@ html, body {
   font-weight: 900;
   letter-spacing: -0.03em;
   margin: 0;
+  text-shadow: var(--title-glow);
 }
 .logo-accent {
   background: linear-gradient(90deg, var(--accent), var(--accent2));
@@ -86,7 +97,7 @@ html, body {
 #playerName {
   flex: 1;
   background: var(--bg2);
-  border: 1px solid #2a2a3d;
+  border: 1px solid var(--line);
   color: var(--fg);
   border-radius: 12px;
   padding: 12px 14px;
@@ -112,7 +123,7 @@ html, body {
 }
 .big-btn:active { transform: scale(0.97); }
 .big-btn.primary { background: linear-gradient(90deg, var(--accent), var(--accent2)); box-shadow: 0 10px 30px -10px var(--accent); }
-.big-btn.ghost { background: transparent; border: 2px solid #2f2f45; color: var(--fg); }
+.big-btn.ghost { background: transparent; border: 2px solid var(--line2); color: var(--fg); }
 .link-btn {
   background: none; border: none; color: var(--muted);
   font-size: 15px; text-decoration: underline; cursor: pointer; padding: 6px;
@@ -152,7 +163,7 @@ button:disabled:active { transform: none; }
   border-radius: 99px;
   margin: 12px 0 4px;
   overflow: hidden;
-  background: #1d1d2b;
+  background: var(--panel);
 }
 #timerbar-fill {
   height: 100%;
@@ -259,7 +270,7 @@ button:disabled:active { transform: none; }
 @keyframes pop { 0% { transform: scale(0.6); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
 .versus {
   background: var(--bg2);
-  border: 1px solid #2a2a3d;
+  border: 1px solid var(--line);
   border-radius: 14px;
   padding: 12px 16px;
   font-size: 16px;
@@ -286,7 +297,7 @@ button:disabled:active { transform: none; }
   position: absolute;
   left: 50%; bottom: calc(var(--safe-b) + 24px);
   transform: translateX(-50%);
-  background: #23233a;
+  background: var(--panel2);
   color: #fff;
   padding: 12px 18px;
   border-radius: 12px;
@@ -307,3 +318,73 @@ button:disabled:active { transform: none; }
 
 .score-bump { animation: bump 0.18s ease; }
 @keyframes bump { 0% { transform: scale(1); } 50% { transform: scale(1.35); } 100% { transform: scale(1); } }
+
+/* ---------- Themes (presentation only) ----------
+   A theme may change the backdrop, text, panels, accent colors and font.
+   It must NOT change hitboxes, timing, or the gameplay colors (--red, --green,
+   --blue, --yellow, --purple), so commands stay readable in every theme. */
+:root[data-theme="arcade"] {
+  --bg: #0a0014;
+  --bg2: #170029;
+  --fg: #fdf4ff;
+  --muted: #b99ad8;
+  --accent: #ff2bd6;
+  --accent2: #00e5ff;
+  --bg-glow: #3a0a5c;
+  --line: #5b1d8f;
+  --line2: #7a2bb8;
+  --panel: #1f0836;
+  --panel2: #2c0f4d;
+  --title-glow: 0 0 18px rgba(255, 43, 214, 0.55);
+  --font: "Avenir Next Condensed", "Arial Narrow", Impact, system-ui, sans-serif;
+}
+:root[data-theme="terminal"] {
+  --bg: #020a04;
+  --bg2: #06140a;
+  --fg: #c4ffd2;
+  --muted: #55b872;
+  --accent: #33ff66;
+  --accent2: #00d68f;
+  --bg-glow: #05260f;
+  --line: #11421f;
+  --line2: #1a6130;
+  --panel: #07180c;
+  --panel2: #0c2614;
+  --title-glow: 0 0 14px rgba(51, 255, 102, 0.45);
+  --font: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
+:root[data-theme="space"] {
+  --bg: #050b1a;
+  --bg2: #0b1730;
+  --fg: #eaf4ff;
+  --muted: #8fa8c8;
+  --accent: #38bdf8;
+  --accent2: #818cf8;
+  --bg-glow: #12305c;
+  --line: #1e3a66;
+  --line2: #2b5088;
+  --panel: #0c1a33;
+  --panel2: #12254a;
+  --title-glow: 0 0 16px rgba(56, 189, 248, 0.4);
+  --font: "Avenir Next", "Helvetica Neue", system-ui, sans-serif;
+}
+/* Terminal text-buttons keep monospace alignment */
+:root[data-theme="terminal"] .big-btn { letter-spacing: 0.04em; }
+:root[data-theme="arcade"] .big-btn, :root[data-theme="arcade"] .chal-title { letter-spacing: 0.06em; text-transform: uppercase; }
+
+/* ---------- Theme picker ---------- */
+.theme-list { width: 100%; max-width: 340px; display: flex; flex-direction: column; gap: 10px; }
+.theme-card {
+  display: flex; align-items: center; gap: 12px; width: 100%; text-align: left;
+  background: var(--panel); color: var(--fg); border: 2px solid var(--line);
+  border-radius: 16px; padding: 12px 14px; font: inherit; cursor: pointer;
+}
+.theme-card.selected { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent) inset; }
+.theme-card .swatch { display: flex; flex: none; }
+.theme-card .swatch i { width: 18px; height: 34px; display: block; }
+.theme-card .swatch i:first-child { border-radius: 8px 0 0 8px; }
+.theme-card .swatch i:last-child { border-radius: 0 8px 8px 0; }
+.theme-card .meta { flex: 1; min-width: 0; }
+.theme-card .meta strong { display: block; font-size: 17px; }
+.theme-card .meta span { display: block; font-size: 13px; color: var(--muted); }
+.theme-card .tag { flex: none; font-size: 12px; font-weight: 800; letter-spacing: 0.06em; color: var(--accent); }

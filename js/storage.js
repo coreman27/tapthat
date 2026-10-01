@@ -20,6 +20,7 @@
       best: 0,
       name: '',
       muted: false,
+      theme: 'default',
       // adaptive: per-category play/fail counts
       stats: {},
       games: 0,
@@ -38,11 +39,13 @@
     get best() { return state.best; },
     get name() { return state.name; },
     get muted() { return state.muted; },
+    get theme() { return state.theme; },
     get games() { return state.games; },
     get stats() { return state.stats; },
 
     setName: function (n) { state.name = (n || '').slice(0, 14); save(); },
     setMuted: function (m) { state.muted = !!m; save(); },
+    setTheme: function (id) { state.theme = String(id || 'default').slice(0, 24); save(); },
 
     setBest: function (score) {
       if (score > state.best) { state.best = score; save(); return true; }

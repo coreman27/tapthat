@@ -13,6 +13,7 @@ var ASSETS = [
   './js/storage.js',
   './js/audio.js',
   './js/weekly.js',
+  './js/themes.js',
   './js/share.js',
   './js/challenges.js',
   './js/adaptive.js',

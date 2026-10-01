@@ -283,6 +283,12 @@ Do not build the larger store to compensate for an unproven game loop.
 
 ### Story 2.1 - A small, readable theme shop
 
+**Status:** the theme system and three preview themes (Neon Arcade, Hacker Terminal,
+Space Station) are built on the `themes` branch, with contrast and "gameplay colors
+never change" tests. **Not built:** purchases. The native StoreKit code supports one
+product; selling themes needs multi-product support, restore, and App Store Connect
+products. Themes are a free preview until then and must not ship enabled.
+
 Candidate themes: **1980s Arcade, Hacker Terminal, Grandma's Phone, Corporate
 Hell, Kindergarten, Vegas, Horror, Retro iPhone, Game Show, and Space Station.**
 These are concept names; final names, artwork, and sound must be original or

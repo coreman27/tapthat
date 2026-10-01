@@ -36,6 +36,52 @@
     el('weekly-line').textContent = weeklyStatus();
   }
 
+  var TAGS = { free: '', preview: 'PREVIEW', owned: 'OWNED', locked: 'LOCKED' };
+
+  function renderThemes() {
+    var list = el('theme-list');
+    list.innerHTML = '';
+    Themes.LIST.forEach(function (theme) {
+      var state = Themes.ownership(theme.id);
+      var card = document.createElement('button');
+      card.type = 'button';
+      card.className = 'theme-card' + (theme.id === Store.theme || (theme.id === 'default' && !Themes.find(Store.theme)) ? ' selected' : '');
+      card.disabled = state === 'locked';
+      var swatch = document.createElement('span');
+      swatch.className = 'swatch';
+      theme.swatch.forEach(function (color) {
+        var chip = document.createElement('i');
+        chip.style.background = color;
+        swatch.appendChild(chip);
+      });
+      var meta = document.createElement('span');
+      meta.className = 'meta';
+      var name = document.createElement('strong');
+      name.textContent = theme.name;
+      var blurb = document.createElement('span');
+      blurb.textContent = theme.blurb;
+      meta.appendChild(name);
+      meta.appendChild(blurb);
+      var tag = document.createElement('span');
+      tag.className = 'tag';
+      tag.textContent = card.classList.contains('selected') ? 'IN USE' : TAGS[state];
+      card.appendChild(swatch);
+      card.appendChild(meta);
+      card.appendChild(tag);
+      card.addEventListener('click', function () { chooseTheme(theme.id); });
+      list.appendChild(card);
+    });
+    el('themes-note').textContent = Themes.previewAll()
+      ? 'Preview: every theme is free to try for now. Looks only — commands, timing and colors never change.'
+      : 'Looks only. Commands, timing and colors never change.';
+  }
+
+  function chooseTheme(id) {
+    var applied = Themes.apply(id);
+    Store.setTheme(applied);
+    renderThemes();
+  }
+
   function startGame() { beginRun(null); }
   function startWeekly() { beginRun({ weeklyId: Weekly.weekId() }); }
   // Try Again keeps the current mode; a weekly run rolls over to the new week if it changed.
@@ -252,6 +298,8 @@
       renderAdDiagnostics();
     });
     el('btn-how-back').addEventListener('click', function () { UI.show('home'); });
+    el('btn-themes').addEventListener('click', function () { renderThemes(); UI.show('themes'); });
+    el('btn-themes-back').addEventListener('click', function () { UI.show('home'); });
     el('btn-accept').addEventListener('click', function () {
       if (challenger && challenger.weekId) startWeekly(); else startGame();
     });
@@ -309,6 +357,10 @@
     });
     Engine.onUpdate(function (s) { el('score').textContent = s; });
     Engine.onGameOver(renderGameOver);
+
+    var appliedTheme = Themes.apply(Store.theme);
+    if (appliedTheme !== Store.theme) Store.setTheme(appliedTheme);
+    el('btn-themes').classList.toggle('hidden', !Themes.enabled());
 
     el('playerName').value = Store.name || '';
     refreshBest();
