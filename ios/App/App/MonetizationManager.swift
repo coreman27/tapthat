@@ -58,6 +58,7 @@ private final class Deadline<Value> {
 final class MonetizationManager: NSObject, FullScreenContentDelegate {
     private static let testAppID = "ca-app-pub-3940256099942544~1458002511"
     private static let testInterstitialID = "ca-app-pub-3940256099942544/4411468910"
+    private static let testRewardedID = "ca-app-pub-3940256099942544/1712485313"
     private let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "DontTapThat", category: "Monetization")
     private weak var plugin: MonetizationPlugin?
     private var transactionObserver: Task<Void, Never>?
@@ -84,6 +85,14 @@ final class MonetizationManager: NSObject, FullScreenContentDelegate {
     private var loadingAd = false
     private var adGeneration = 0
     private var presentingAd: InterstitialAd?
+    // Rewarded Continue: kept apart from the interstitial state so neither can disturb the other.
+    private var cachedRewarded: RewardedAd?
+    private var cachedRewardedAt: Date?
+    private var loadingRewarded = false
+    private var rewardedGeneration = 0
+    private var presentingRewarded: RewardedAd?
+    private var rewardedCall: CAPPluginCall?
+    private var rewardEarned = false
     private var presentationCall: CAPPluginCall?
     private var presentationDidStart = false
     private var presentationWaiters: [CAPPluginCall] = []
@@ -91,6 +100,7 @@ final class MonetizationManager: NSObject, FullScreenContentDelegate {
     private let productID: String
     private let appID: String
     private let interstitialID: String
+    private let rewardedID: String
     private let testAds: Bool
     private let adsEnabled: Bool
 
@@ -104,6 +114,7 @@ final class MonetizationManager: NSObject, FullScreenContentDelegate {
         testAds = info.object(forInfoDictionaryKey: "MonetizationTestAds") as? Bool ?? true
         adsEnabled = info.object(forInfoDictionaryKey: "MonetizationAdsEnabled") as? Bool ?? false
         interstitialID = info.object(forInfoDictionaryKey: "MonetizationInterstitialAdUnitID") as? String ?? ""
+        rewardedID = info.object(forInfoDictionaryKey: "MonetizationRewardedAdUnitID") as? String ?? ""
         super.init()
     }
 
@@ -134,6 +145,7 @@ final class MonetizationManager: NSObject, FullScreenContentDelegate {
         if let product { result["price"] = product.displayPrice }
         var themePrices = JSObject()
         for (id, themeProduct) in themeProducts { themePrices[id] = themeProduct.displayPrice }
+        result["rewardedReady"] = cachedRewarded != nil
         result["ownedThemes"] = ownedThemes.sorted()
         result["themePrices"] = themePrices
         if let message { result["message"] = message }
@@ -370,9 +382,11 @@ final class MonetizationManager: NSObject, FullScreenContentDelegate {
         cachedAd = nil
         cachedAt = nil
         loadingAd = false
+        discardCachedRewarded()
     }
 
     private func preloadAd() {
+        preloadRewarded()
         guard mayRequestAds, networkAvailable, presentingAd == nil,
               UIApplication.shared.applicationState == .active else { return }
         if !mobileAdsStarted {
@@ -490,16 +504,24 @@ final class MonetizationManager: NSObject, FullScreenContentDelegate {
         ad.present(from: controller)
     }
 
+    private func isRewarded(_ ad: FullScreenPresentingAd) -> Bool {
+        guard let presentingRewarded else { return false }
+        return (ad as AnyObject) === (presentingRewarded as AnyObject)
+    }
+
     func adWillPresentFullScreenContent(_ ad: FullScreenPresentingAd) {
+        if isRewarded(ad) { return }
         presentationDidStart = true
     }
 
     func adDidDismissFullScreenContent(_ ad: FullScreenPresentingAd) {
+        if isRewarded(ad) { completeRewarded(reason: nil); return }
         completePresentation(shown: true, reason: nil)
     }
 
     func ad(_ ad: FullScreenPresentingAd, didFailToPresentFullScreenContentWithError error: Error) {
         report("An ad could not be displayed. You can keep playing.", error: error)
+        if isRewarded(ad) { completeRewarded(reason: "presentation_failed"); return }
         completePresentation(shown: presentationDidStart, reason: "presentation_failed")
     }
 
@@ -729,5 +751,123 @@ extension MonetizationManager {
             report("Theme purchase could not be completed. Check your connection or try Restore Purchases.", error: error)
             call.reject("Theme purchase could not be completed. Please try again or Restore Purchases.")
         }
+    }
+}
+
+// MARK: - Rewarded Continue
+//
+// One optional rewarded video lets a player continue a failed casual run once. The reward is
+// granted only by the SDK's reward callback, exactly once per presentation; closing early,
+// load failure or any error resolves with rewarded=false. Remove Ads owners never reach this
+// code (the app grants their continue without a video).
+extension MonetizationManager {
+    fileprivate var rewardedConfigured: Bool {
+        guard adsConfigured else { return false }
+        if testAds { return rewardedID == Self.testRewardedID }
+        return rewardedID.range(of: #"^ca-app-pub-[0-9]{16}/[0-9]{10}$"#, options: .regularExpression) != nil
+            && !rewardedID.contains("3940256099942544")
+    }
+
+    fileprivate func discardCachedRewarded() {
+        rewardedGeneration += 1
+        cachedRewarded = nil
+        cachedRewardedAt = nil
+        loadingRewarded = false
+    }
+
+    fileprivate func preloadRewarded() {
+        guard rewardedConfigured, mayRequestAds, networkAvailable, mobileAdsReady,
+              presentingAd == nil, presentingRewarded == nil, cachedRewarded == nil, !loadingRewarded,
+              UIApplication.shared.applicationState == .active else { return }
+        loadingRewarded = true
+        let generation = rewardedGeneration
+        let request = Request()
+        let extras = Extras()
+        extras.additionalParameters = ["npa": "1"]
+        request.register(extras)
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            do {
+                let ad = try await Deadline<RewardedAd>().run(seconds: 15) {
+                    try await RewardedAd.load(with: self.rewardedID, request: request)
+                }
+                guard self.rewardedGeneration == generation else { return }
+                self.loadingRewarded = false
+                guard self.mayRequestAds else { return }
+                ad.fullScreenContentDelegate = self
+                self.cachedRewarded = ad
+                self.cachedRewardedAt = Date()
+                self.emitState()
+            } catch {
+                guard self.rewardedGeneration == generation else { return }
+                self.loadingRewarded = false
+                // Quiet by design: an unavailable video just means the offer stays disabled.
+                self.logger.notice("Rewarded ad unavailable. Error code: \((error as NSError).code)")
+            }
+        }
+    }
+
+    func showRewarded(_ call: CAPPluginCall) async {
+        if rewardedCall != nil { call.resolve(["rewarded": false, "reason": "already_presenting"]); return }
+        guard initialized else { call.resolve(["rewarded": false, "reason": "not_initialized"]); return }
+        guard !busy else { call.resolve(["rewarded": false, "reason": "busy"]); return }
+        guard networkAvailable else { call.resolve(["rewarded": false, "reason": "offline"]); return }
+        guard !adsRemoved else { call.resolve(["rewarded": false, "reason": "ads_removed"]); return }
+        guard let ad = cachedRewarded, let loadedAt = cachedRewardedAt else {
+            call.resolve(["rewarded": false, "reason": "not_ready"])
+            preloadRewarded()
+            return
+        }
+        guard Date().timeIntervalSince(loadedAt) < 3_300 else {
+            discardCachedRewarded()
+            call.resolve(["rewarded": false, "reason": "not_ready"])
+            preloadRewarded()
+            return
+        }
+        busy = true
+        rewardedCall = call
+        rewardEarned = false
+        do { try await refreshEntitlements() }
+        catch {
+            report("Purchase status could not be verified. Ads are paused; try Restore Purchases.", error: error)
+            completeRewarded(reason: "entitlement_unavailable")
+            return
+        }
+        emitState()
+        guard networkAvailable else { completeRewarded(reason: "offline"); return }
+        guard mayRequestAds else { completeRewarded(reason: adsRemoved ? "ads_removed" : "ads_unavailable"); return }
+        guard cachedRewarded === ad else { completeRewarded(reason: "not_ready"); return }
+        guard let controller else { completeRewarded(reason: "not_foreground"); return }
+        do { try ad.canPresent(from: controller) }
+        catch {
+            discardCachedRewarded()
+            logger.notice("Rewarded ad could not be presented. Error code: \((error as NSError).code)")
+            completeRewarded(reason: "cannot_present")
+            return
+        }
+        cachedRewarded = nil
+        cachedRewardedAt = nil
+        presentingRewarded = ad
+        ad.present(from: controller) { [weak self] in
+            // Recorded synchronously: the dismissal callback can follow immediately, and a
+            // reward noted one tick late would be lost. Late/duplicate calls are ignored.
+            MainActor.assumeIsolated {
+                guard let self, self.presentingRewarded === ad else { return }
+                self.rewardEarned = true
+            }
+        }
+    }
+
+    fileprivate func completeRewarded(reason: String?) {
+        var response: JSObject = ["rewarded": rewardEarned]
+        if let reason { response["reason"] = reason }
+        let call = rewardedCall
+        rewardedCall = nil
+        presentingRewarded = nil
+        rewardEarned = false
+        busy = false
+        call?.resolve(response)
+        emitState()
+        preloadAd()
     }
 }

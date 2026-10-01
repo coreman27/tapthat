@@ -7,6 +7,7 @@ public final class MonetizationPlugin: CAPPlugin, CAPBridgedPlugin {
     public let pluginMethods: [CAPPluginMethod] = [
         CAPPluginMethod(name: "initialize", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "showInterstitial", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "showRewarded", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "purchaseRemoveAds", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "purchaseTheme", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "restorePurchases", returnType: CAPPluginReturnPromise),
@@ -25,6 +26,10 @@ public final class MonetizationPlugin: CAPPlugin, CAPBridgedPlugin {
 
     @objc func showInterstitial(_ call: CAPPluginCall) {
         Task { @MainActor in await monetization.showInterstitial(call) }
+    }
+
+    @objc func showRewarded(_ call: CAPPluginCall) {
+        Task { @MainActor in await monetization.showRewarded(call) }
     }
 
     @objc func purchaseRemoveAds(_ call: CAPPluginCall) {

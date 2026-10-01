@@ -249,6 +249,79 @@ console.log('\n3b) Weekly mode through the real engine is deterministic');
   }
 })();
 
+console.log('\n3c) Rewarded Continue: the real engine resumes once, only casually, and flags the run');
+(function () {
+  const originalTimeout = W.setTimeout;
+  const originalPick = W.Adaptive.pickNext;
+  const timers = [];
+  W.setTimeout = function (fn, delay) { timers.push({ fn, delay }); return timers.length; };
+  const def = function (id) { return W.Challenges.DEFS.find(function (d) { return d.id === id; }); };
+  let script = [];
+  W.Adaptive.pickNext = function () { return def(script.shift() || 'tapme'); };
+  const field = makeEl('div');
+  const results = [];
+  W.Engine.init({
+    field, instruction: makeEl('div'), timerFill: makeEl('div'),
+    notifLayer: makeEl('div'), screenGame: makeEl('div'), scoreEl: makeEl('div')
+  });
+  W.Engine.onGameOver(function (payload) { results.push(payload); });
+  function advance(delay) {
+    const i = timers.findIndex(function (t) { return t.delay === delay; });
+    if (i < 0) throw new Error('Missing timer: ' + delay);
+    timers.splice(i, 1)[0].fn();
+  }
+  const lastButton = function () { return field.children[field.children.length - 1]; };
+  function tapCorrect() { lastButton().dispatch('pointerdown', {}); lastButton().dispatch('pointerup', {}); }
+  function failNow() { lastButton().dispatch('pointerdown', {}); }   // DON'T TAP ME: tapping it fails
+  try {
+    // --- casual run: two clears, then a failure at score 2 ---
+    script = ['tapme', 'tapme', 'donttap'];
+    W.Engine.start(); advance(550);
+    tapCorrect(); advance(170); tapCorrect(); advance(170);
+    assert(W.Engine.canResume() === false, 'cannot continue while a run is in progress');
+    failNow(); advance(260);
+    assert(results.length === 1 && results[0].score === 2 && results[0].assisted === false, 'first ending: score 2, not assisted');
+    assert(W.Engine.canResume() === true, 'a casual failure with a score can be continued');
+
+    // --- continue: same score, ready beat, fresh challenge, assisted ---
+    script = ['donttap'];
+    assert(W.Engine.resume() === true, 'resume succeeds once');
+    assert(W.Engine.getScore() === 2, 'resumes at the existing score');
+    assert(W.Engine.isAssisted() === true, 'the run is now assisted');
+    assert(W.Engine.canResume() === false && W.Engine.resume() === false, 'a second continue is refused');
+    advance(900);
+    assert(W.Engine.getRounds().length === 2, 'rounds from before the failure are preserved');
+    failNow(); advance(260);
+    assert(results.length === 2 && results[1].score === 2 && results[1].assisted === true, 'final ending is flagged assisted');
+    assert(W.Engine.canResume() === false && W.Engine.resume() === false, 'no further continue after the assisted ending');
+
+    // --- weekly runs are never continued ---
+    script = ['tapme', 'donttap'];
+    W.Engine.start({ weeklyId: '2026-W40' }); advance(550);
+    tapCorrect(); advance(170); failNow(); advance(260);
+    assert(results[2].weeklyId === '2026-W40' && W.Engine.canResume() === false, 'weekly failures cannot be continued');
+
+    // --- failing before scoring, or stopping, offers nothing ---
+    script = ['donttap'];
+    W.Engine.start(); advance(550); failNow(); advance(260);
+    assert(results[3].score === 0 && W.Engine.canResume() === false, 'a failure at score 0 cannot be continued');
+    script = ['tapme', 'donttap'];
+    W.Engine.start(); advance(550); tapCorrect(); advance(170); failNow(); advance(260);
+    assert(W.Engine.canResume() === true, 'a casual failure can be continued...');
+    W.Engine.stop();
+    assert(W.Engine.canResume() === false && W.Engine.resume() === false, '...until the run is abandoned');
+
+    // --- a fresh start clears the assisted flag ---
+    script = ['tapme'];
+    W.Engine.start(); advance(550);
+    assert(W.Engine.isAssisted() === false, 'a new run is not assisted');
+  } finally {
+    W.Engine.stop();
+    W.setTimeout = originalTimeout;
+    W.Adaptive.pickNext = originalPick;
+  }
+})();
+
 console.log('\n4) Adaptive selection + timing');
 (function () {
   for (var s = 0; s <= 50; s += 5) {

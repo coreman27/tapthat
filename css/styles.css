@@ -401,3 +401,6 @@ button:disabled:active { transform: none; }
 .lb-list .sc { font-weight: 800; }
 .lb-friends { width: 100%; max-width: 340px; display: flex; flex-direction: column; gap: 10px; align-items: center; }
 .lb-friends .name-row input { text-transform: uppercase; }
+
+/* Rewarded Continue: a clearly optional second choice under the free TRY AGAIN */
+.big-btn small { display: block; margin-top: 4px; font-size: 13px; font-weight: 600; letter-spacing: 0.02em; opacity: 0.8; text-transform: none; }

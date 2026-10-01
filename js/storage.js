@@ -18,6 +18,7 @@
   function defaults() {
     return {
       best: 0,
+      assistedBest: 0, // best score of runs continued with Rewarded Continue; never ranked
       name: '',
       muted: false,
       theme: 'default',
@@ -39,6 +40,7 @@
 
   var Store = {
     get best() { return state.best; },
+    get assistedBest() { return state.assistedBest | 0; },
     get name() { return state.name; },
     get muted() { return state.muted; },
     get theme() { return state.theme; },
@@ -50,6 +52,11 @@
     setName: function (n) { state.name = (n || '').slice(0, 14); save(); },
     setMuted: function (m) { state.muted = !!m; save(); },
     setTheme: function (id) { state.theme = String(id || 'default').slice(0, 24); save(); },
+
+    setAssistedBest: function (score) {
+      if (score > (state.assistedBest | 0)) { state.assistedBest = score; save(); return true; }
+      return false;
+    },
 
     setBest: function (score) {
       if (score > state.best) { state.best = score; save(); return true; }

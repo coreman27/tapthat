@@ -23,6 +23,11 @@
   }
 
   var runOpts = null; // { weeklyId } for the current/last run; null means a normal run
+  var CONTINUE_MIN_SCORE = 5;  // below this a continue is not worth offering (also keeps interstitial inventory)
+  var continueOffer = null;    // { token, score } while a continue is offered on the game-over screen
+  var gameOverToken = 0;       // identifies one game-over screen so stale callbacks cannot resume a different run
+  var continuing = false;      // a continue (rewarded video) is in progress
+  var lastRunAssisted = false;
 
   function weeklyStatus() {
     var id = Weekly.weekId();
@@ -154,6 +159,8 @@
   function beginRun(opts) {
     if (gameActive || transitioning || Monetization.getState().busy) return;
     runOpts = opts || null;
+    continueOffer = null;
+    lastRunAssisted = false;
     try {
       runId = Monetization.startRun();
     } catch (error) {
@@ -175,32 +182,45 @@
   function renderGameOver(payload) {
     if (!gameActive) return;
     gameActive = false;
-    Store.recordGame();
+    var assisted = !!payload.assisted;
     var score = payload.score;
     var weeklyId = payload.weeklyId || null;
+    gameOverToken += 1;
+    lastRunAssisted = assisted;
     var previousBest, isBest;
-    if (weeklyId) {
-      previousBest = Store.weeklyBest(weeklyId);
-      isBest = Store.recordWeekly(weeklyId, score) && score > 0;
+    if (assisted) {
+      // This run already ended once (and was counted) before its continue: it is not a new
+      // game, and its score never touches the real best or any ranking.
+      previousBest = Store.assistedBest;
+      isBest = Store.setAssistedBest(score);
     } else {
-      previousBest = Store.best;
-      isBest = Store.setBest(score);
+      Store.recordGame();
+      if (weeklyId) {
+        previousBest = Store.weeklyBest(weeklyId);
+        isBest = Store.recordWeekly(weeklyId, score) && score > 0;
+      } else {
+        previousBest = Store.best;
+        isBest = Store.setBest(score);
+      }
     }
     refreshBest();
     refreshWeekly();
 
     el('over-reason').textContent = payload.reason || 'Game over.';
     el('final-score').textContent = score;
-    el('final-best').textContent = weeklyId ? Store.weeklyBest(weeklyId) : Store.best;
-    el('over-mode').textContent = weeklyId ? 'Weekly challenge • week ' + parseInt(weeklyId.split('-W')[1], 10) : '';
-    el('over-mode').classList.toggle('hidden', !weeklyId);
-    el('new-best').textContent = weeklyId ? 'NEW WEEKLY BEST!' : 'NEW BEST!';
+    el('final-best-label').textContent = assisted ? 'ASSISTED BEST' : 'BEST';
+    el('final-best').textContent = assisted ? Store.assistedBest : (weeklyId ? Store.weeklyBest(weeklyId) : Store.best);
+    el('over-mode').textContent = assisted ? 'Assisted run \u2022 continued once' :
+      (weeklyId ? 'Weekly challenge \u2022 week ' + parseInt(weeklyId.split('-W')[1], 10) : '');
+    el('over-mode').classList.toggle('hidden', !weeklyId && !assisted);
+    el('new-best').textContent = assisted ? 'NEW ASSISTED BEST!' : (weeklyId ? 'NEW WEEKLY BEST!' : 'NEW BEST!');
     el('new-best').classList.toggle('hidden', !isBest);
     if (isBest && score > 0) Sound.best();
 
     var versus = el('versus');
     // A friend's weekly score only compares against a run of that same week's sequence.
-    var comparable = challenger && (challenger.weekId || null) === weeklyId;
+    // An assisted run is never compared with a friend's score.
+    var comparable = !assisted && challenger && (challenger.weekId || null) === weeklyId;
     if (comparable) {
       var you = score, them = challenger.score;
       var html;
@@ -220,24 +240,79 @@
       versus.classList.add('hidden');
     }
 
-    if (weeklyId) {
+    if (weeklyId && !assisted) {
       LeaderboardUI.afterWeeklyRun({ weekId: weeklyId, score: score, rounds: payload.rounds || [], name: playerName() });
     } else {
       el('over-rank').classList.add('hidden');
       el('btn-join-lb').classList.add('hidden');
     }
 
+    var offer = assisted ? null : continueOfferFor(score, weeklyId);
+    continueOffer = offer ? { token: gameOverToken, score: score } : null;
+    renderContinue();
+
     UI.show('over');
-    try {
-      pendingBreak = runId ? Monetization.recordLoss({
-        runId: runId, score: score, previousBest: previousBest,
-        assisted: false, rewardedOffered: false, rewardedUsed: false
-      }) : null;
-    } catch (error) {
-      pendingBreak = null;
-      reportMonetizationError(error, 'Ad timing is unavailable. You can still play.');
+    pendingBreak = null;
+    if (!assisted) {
+      try {
+        pendingBreak = runId ? Monetization.recordLoss({
+          runId: runId, score: score, previousBest: previousBest,
+          // A usable continue offer shares the break with the free retry, so no interstitial
+          // is stacked on it (the policy skips it rather than queuing a catch-up ad).
+          assisted: false, rewardedOffered: !!(offer && offer.enabled), rewardedUsed: false
+        }) : null;
+      } catch (error) {
+        pendingBreak = null;
+        reportMonetizationError(error, 'Ad timing is unavailable. You can still play.');
+      }
     }
     renderBreakNotice();
+  }
+
+  // Rewarded Continue: offered once after a casual run fails, never in the weekly challenge.
+  function continueOfferFor(score, weeklyId) {
+    var state = Monetization.getState();
+    if (weeklyId || score < CONTINUE_MIN_SCORE || !state.supported || !state.ready || !Engine.canResume()) return null;
+    return { enabled: state.adsRemoved || state.rewardedReady };
+  }
+
+  function renderContinue() {
+    var button = el('btn-continue');
+    var state = Monetization.getState();
+    var visible = !!continueOffer && !gameActive;
+    button.classList.toggle('hidden', !visible);
+    if (!visible) return;
+    var free = state.adsRemoved;
+    var ready = free || state.rewardedReady;
+    el('continue-title').textContent = 'Continue at ' + continueOffer.score + '?';
+    el('continue-sub').textContent = free ? 'Free with Remove Ads' :
+      (ready ? 'Watch ad to continue' : 'Video unavailable right now');
+    button.disabled = !ready || state.busy || transitioning || continuing;
+  }
+
+  function doContinue() {
+    var offer = continueOffer;
+    if (!offer || offer.token !== gameOverToken || gameActive || transitioning || continuing) return;
+    continuing = true;
+    renderContinue();
+    Monetization.showRewarded().then(function (result) {
+      // The player may have left this game-over screen while the ad was up: never resume then.
+      if (offer.token !== gameOverToken || gameActive || continueOffer !== offer) return;
+      if (!result.rewarded) {
+        UI.toast('No reward earned, so no continue. You can still try again.', 3500);
+        return;
+      }
+      if (!Engine.resume()) { UI.toast('That run can no longer be continued.'); continueOffer = null; return; }
+      continueOffer = null;
+      pendingBreak = null;
+      gameActive = true;
+      UI.show('game');
+    }).catch(function (error) {
+      reportMonetizationError(error, 'The video could not be shown. You can still try again.');
+    }).then(function () {
+      continuing = false;
+      renderContinue();
+    });
   }
 
   function renderBreakNotice() {
@@ -246,7 +321,8 @@
   }
 
   async function leaveGameOver(next) {
-    if (transitioning || Monetization.getState().busy || gameActive) return;
+    if (transitioning || continuing || Monetization.getState().busy || gameActive) return;
+    continueOffer = null;
     transitioning = true;
     renderMonetization(Monetization.getState());
     var decision = pendingBreak;
@@ -280,7 +356,7 @@
     el('btn-store').classList.toggle('hidden', !state.supported);
     el('btn-over-store').classList.toggle('hidden', !state.supported || state.adsRemoved);
     [
-      'btn-play', 'btn-weekly', 'btn-again', 'btn-theme-buy', 'btn-theme-restore', 'btn-share', 'btn-home', 'btn-how', 'btn-how-back',
+      'btn-play', 'btn-weekly', 'btn-again', 'btn-continue', 'btn-theme-buy', 'btn-theme-restore', 'btn-share', 'btn-home', 'btn-how', 'btn-how-back',
       'btn-accept', 'btn-skip-challenge', 'btn-store', 'btn-over-store', 'btn-store-back'
     ].forEach(function (id) { el(id).disabled = state.busy || transitioning; });
     el('btn-remove-ads').disabled = state.busy || transitioning || !state.ready || state.adsRemoved ||
@@ -298,6 +374,7 @@
     if (state.message && state.message !== lastMonetizationMessage) UI.toast(state.message, 5000);
     lastMonetizationMessage = state.message;
     renderBreakNotice();
+    renderContinue();
     reconcileTheme(state);
   }
 
@@ -330,7 +407,9 @@
 
   function doShare() {
     var weeklyId = runOpts && runOpts.weeklyId ? runOpts.weeklyId : null;
-    var score = Math.max((weeklyId ? Store.weeklyBest(weeklyId) : Store.best) | 0, Engine.getScore() | 0);
+    var base = (weeklyId ? Store.weeklyBest(weeklyId) : Store.best) | 0;
+    // An assisted run's score is never shared as a challenge.
+    var score = lastRunAssisted ? base : Math.max(base, Engine.getScore() | 0);
     var name = playerName();
     Share.share(name, score, weeklyId).then(function (res) {
       if (res.canceled) return;
@@ -361,6 +440,7 @@
     el('btn-play').addEventListener('click', startGame);
     el('btn-again').addEventListener('click', function () { leaveGameOver(replay); });
     el('btn-weekly').addEventListener('click', startWeekly);
+    el('btn-continue').addEventListener('click', doContinue);
     el('btn-share').addEventListener('click', doShare);
     el('btn-home').addEventListener('click', function () {
       leaveGameOver(function () { challenger = null; UI.show('home'); refreshBest(); });

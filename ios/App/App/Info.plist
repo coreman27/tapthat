@@ -32,6 +32,8 @@
 	<true/>
 	<key>MonetizationInterstitialAdUnitID</key>
 	<string>ca-app-pub-3940256099942544/4411468910</string>
+	<key>MonetizationRewardedAdUnitID</key>
+	<string>ca-app-pub-3940256099942544/1712485313</string>
 	<key>MonetizationRemoveAdsProductID</key>
 	<string>com.coreyhall.donttapthat.removeads</string>
 	<key>MonetizationThemeProductIDs</key>

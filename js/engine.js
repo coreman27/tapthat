@@ -6,6 +6,8 @@
   var score = 0, lastId = null, running = false;
   var weeklyId = null, round = 0; // weeklyId set => seeded weekly run
   var rounds = [];                // ms from round start to success, one per cleared round
+  var canResume = false;          // last run failed and has not used its one continue yet
+  var assisted = false;           // this run was continued once (Rewarded Continue)
   var cleanups = [];
   var raf = 0, timerStart = 0, timerLimit = 0, tickedAt = 0;
   var resolved = false;
@@ -79,10 +81,12 @@
       screenGame.classList.add('flash-bad');
       running = false;
       var finished = weeklyId;
+      // One continue per run, casual runs only: the weekly sequence is never assisted.
+      canResume = !weeklyId && !assisted && score >= 1;
       Challenges.setRng(null);
       setTimeout(function () {
         screenGame.classList.remove('flash-bad');
-        onGameOver({ score: score, reason: reason || 'Game over.', category: category, weeklyId: finished, rounds: rounds.slice() });
+        onGameOver({ score: score, reason: reason || 'Game over.', category: category, weeklyId: finished, rounds: rounds.slice(), assisted: assisted });
       }, 260);
     } else {
       rounds.push(Math.max(1, Math.round(performance.now() - timerStart)));
@@ -152,6 +156,8 @@
     lastId = null;
     round = 0;
     rounds = [];
+    canResume = false;
+    assisted = false;
     weeklyId = (opts && opts.weeklyId) || null;
     Challenges.setRng(null);
     running = true;
@@ -165,7 +171,23 @@
     setTimeout(function () { if (running) nextRound(); }, 550);
   }
 
-  function stop() { running = false; stopTimer(); clearField(); Challenges.setRng(null); }
+  function stop() { running = false; canResume = false; stopTimer(); clearField(); Challenges.setRng(null); }
+
+  // Rewarded Continue: pick up a failed casual run at its current score with a fresh
+  // challenge after a short ready beat. Allowed once per run; the run is then "assisted".
+  function resume() {
+    if (!canResume || running) return false;
+    canResume = false;
+    assisted = true;
+    running = true;
+    resolved = false;
+    Sound.unlock();
+    clearField();
+    setInstruction('GET READY');
+    timerFill.style.transform = 'scaleX(1)';
+    setTimeout(function () { if (running) nextRound(); }, 900);
+    return true;
+  }
 
   global.Engine = {
     init: init,
@@ -173,6 +195,9 @@
     stop: stop,
     onUpdate: function (fn) { onUpdate = fn; },
     onGameOver: function (fn) { onGameOver = fn; },
+    resume: resume,
+    canResume: function () { return canResume && !running; },
+    isAssisted: function () { return assisted; },
     getScore: function () { return score; },
     getRounds: function () { return rounds.slice(); }
   };

@@ -206,20 +206,25 @@ No theme shop, season pass, account system, or tournament backend in this phase.
 
 ### Story 1.1 - One optional Rewarded Continue
 
-- [ ] After a casual-run failure, offer **"Continue at 47?"** using the actual
+**Status:** built and tested (engine, native, ad policy hand-off, UI; see `AD_RULES.md`),
+using Google's *test* rewarded unit. **Not yet proven:** a real rewarded video on a device,
+the production AdMob rewarded unit (create one, then set `MonetizationRewardedAdUnitID`),
+reward reliability under real network conditions, and the retention guardrail below.
+
+- [x] After a casual-run failure, offer **"Continue at 47?"** using the actual
   score, with an explicit **Watch ad to continue** label.
-- [ ] Keep **TRY AGAIN** immediately available. Do not auto-open a rewarded ad,
+- [x] Keep **TRY AGAIN** immediately available. Do not auto-open a rewarded ad,
   obscure the free choice, or force a purchase when an ad is unavailable.
-- [ ] Allow **at most one successful continue per original run**. Resume at the
+- [x] Allow **at most one successful continue per original run**. Resume at the
   existing score with a fresh challenge and a short ready countdown.
-- [ ] Grant the continue only after the SDK's reward callback, exactly once.
+- [x] Grant the continue only after the SDK's reward callback, exactly once.
   Closing early, load failure, or cancellation grants no reward.
-- [ ] Preserve run identity, consumed-continue status, and score through the
+- [x] Preserve run identity, consumed-continue status, and score through the
   native ad presentation. Ignore duplicate/late callbacks; do not resume a
   different run or a run the player already abandoned.
-- [ ] A failure remains an adaptive-learning failure, but the resumed run must
+- [x] A failure remains an adaptive-learning failure, but the resumed run must
   not be double-counted as a new game or two terminal runs.
-- [ ] Mark any resumed run **assisted**. Keep assisted bests separate from
+- [x] Mark any resumed run **assisted**. Keep assisted bests separate from
   unassisted personal bests and exclude assisted runs from ranked competition.
 
 **Remove Ads promise:** owners get the same one optional casual continue without
@@ -248,7 +253,7 @@ offers do not measurably damage replay or retention under the agreed guardrails.
   A resumed run counts once, at its final ending.
 - [x] Never show an interstitial before the first run or in active gameplay.
   Protect the first-session learning flow and add a wall-clock frequency cap.
-- [ ] Do not stack an interstitial onto the same break as a rewarded ad or
+- [x] Do not stack an interstitial onto the same break as a rewarded ad or
   rewarded offer. A run that used Rewarded Continue gets no interstitial at its
   final loss; skip the opportunity instead of queuing a catch-up ad.
 - [x] Skip unavailable ads; consent recovery may occur only at a locked safe

@@ -37,7 +37,30 @@ back to the cadence trigger.
 - At most nine attempts per session (`maxAdsPerSession * 3`) to bound no-fill.
 - No ads for verified Remove Ads owners, on the web, before monetization is
   ready, or for a run/break flagged as assisted or involving a rewarded offer.
-  Rewarded Continue itself is not implemented yet.
+
+## Rewarded Continue
+
+After a casual run fails with a score of at least 5, the game-over screen offers
+**Continue at N?** under the free **TRY AGAIN**. Non-owners watch a rewarded video
+(`Watch ad to continue`); Remove Ads owners get the same continue free, with no video.
+
+- **Once per run.** The engine allows a single resume. It restores the same score,
+  shows a short `GET READY`, and serves a fresh challenge.
+- **Counted once.** The run is counted at its first ending; the continued ending is not
+  a second run, game, or ad opportunity (the policy returns `duplicate-run`).
+- **No stacked ads.** A usable offer marks the break `rewardedOffered`, so the policy
+  skips the interstitial (`rewarded-excluded`) instead of queuing a catch-up ad. An
+  unavailable video does not suppress interstitials.
+- **Reward only from the SDK callback**, recorded synchronously, once per presentation.
+  Closing early, load failure, offline or any error grants nothing and leaves TRY AGAIN.
+- **Assisted runs are separate.** They have their own best (`Store.assistedBest`), never
+  raise the real best, are not compared with a friend's score, are not shared as a
+  challenge, and are never part of the weekly challenge or any ranking.
+
+Native code: `showRewarded` in `ios/App/App/MonetizationManager.swift` (own cache,
+generation counters and delegate branch, separate from the interstitial). Ad unit:
+`MonetizationRewardedAdUnitID` in `Info.plist`; the build validator requires Google's
+test ID in test mode and a real, non-test ID in production.
 
 A session rotates after **30 minutes without tracked activity**, not every app
 launch. Closing and reopening within that window preserves the session limits.

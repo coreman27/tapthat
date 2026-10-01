@@ -10,6 +10,7 @@ enabled="$(read_key MonetizationAdsEnabled)"
 test_ads="$(read_key MonetizationTestAds)"
 app_id="$(read_key GADApplicationIdentifier)"
 unit_id="$(read_key MonetizationInterstitialAdUnitID)"
+rewarded_id="$(read_key MonetizationRewardedAdUnitID)"
 product_id="$(read_key MonetizationRemoveAdsProductID)"
 
 # Theme unlock products (optional; every entry must be a well-formed app-scoped id).
@@ -40,8 +41,9 @@ fi
 
 if [ "$test_ads" = "true" ]; then
   if [ "$app_id" != "ca-app-pub-3940256099942544~1458002511" ] ||
-     [ "$unit_id" != "ca-app-pub-3940256099942544/4411468910" ]; then
-    echo "error: Test mode requires Google's official iOS sample app and interstitial IDs."
+     [ "$unit_id" != "ca-app-pub-3940256099942544/4411468910" ] ||
+     [ "$rewarded_id" != "ca-app-pub-3940256099942544/1712485313" ]; then
+    echo "error: Test mode requires Google's official iOS sample app, interstitial and rewarded IDs."
     exit 1
   fi
   if [ "${CONFIGURATION:-}" = "Release" ]; then
@@ -50,8 +52,9 @@ if [ "$test_ads" = "true" ]; then
 else
   if ! printf '%s\n' "$app_id" | grep -Eq '^ca-app-pub-[0-9]{16}~[0-9]{10}$' ||
      ! printf '%s\n' "$unit_id" | grep -Eq '^ca-app-pub-[0-9]{16}/[0-9]{10}$' ||
-     printf '%s\n%s\n' "$app_id" "$unit_id" | grep -q '3940256099942544'; then
-    echo "error: Production advertising requires your real AdMob app and interstitial IDs."
+     ! printf '%s\n' "$rewarded_id" | grep -Eq '^ca-app-pub-[0-9]{16}/[0-9]{10}$' ||
+     printf '%s\n%s\n%s\n' "$app_id" "$unit_id" "$rewarded_id" | grep -q '3940256099942544'; then
+    echo "error: Production advertising requires your real AdMob app, interstitial and rewarded IDs."
     exit 1
   fi
 fi

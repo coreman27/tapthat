@@ -18,6 +18,7 @@
     privacyOptionsRequired: false,
     needsConsent: false,
     testAds: false,
+    rewardedReady: false, // a rewarded video is loaded and can be shown right now
     ownedThemes: [],   // cosmetic theme product keys the player owns (verified by StoreKit)
     themePrices: {},   // theme product id -> localized price string
     message: ''
@@ -46,6 +47,7 @@
     state.needsConsent = value.needsConsent;
     state.testAds = value.testAds;
     state.message = value.message || '';
+    state.rewardedReady = value.rewardedReady === true;
     // Themes are optional polish: malformed theme data must never break ads or Remove Ads.
     state.ownedThemes = Array.isArray(value.ownedThemes) && value.ownedThemes.every(isString) ? value.ownedThemes.slice() : [];
     state.themePrices = cleanPrices(value.themePrices);
@@ -163,6 +165,24 @@
     });
   }
 
+  /* Rewarded Continue. Resolves { rewarded: boolean, reason?: string }.
+   * Remove Ads owners get the continue without a video (free: true). For everyone else the
+   * reward is true only when the native SDK's reward callback fired, so closing early, load
+   * failure, being offline or any error all resolve rewarded: false. */
+  async function showRewarded() {
+    requireReady();
+    if (state.adsRemoved) return { rewarded: true, free: true };
+    if (!state.rewardedReady) return { rewarded: false, reason: 'not_ready' };
+    return exclusive(async function () {
+      var result = await bridge.showRewarded();
+      if (!result || typeof result.rewarded !== 'boolean' ||
+          (result.reason !== undefined && typeof result.reason !== 'string')) {
+        throw new Error('The video could not be shown. You can still try again.');
+      }
+      return { rewarded: result.rewarded, reason: result.reason };
+    });
+  }
+
   var THEME_PREFIX = 'com.coreyhall.donttapthat.theme.';
 
   // key is the short theme id used by the game, e.g. "arcade".
@@ -214,6 +234,7 @@
     setDiagnosticsEnabled: function (enabled) { policy.setDiagnosticsEnabled(enabled); },
     clearDiagnostics: function () { policy.clearDiagnostics(); },
     purchase: purchase,
+    showRewarded: showRewarded,
     purchaseTheme: purchaseTheme,
     ownsTheme: ownsTheme,
     themePrice: themePrice,
