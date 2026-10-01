@@ -36,17 +36,28 @@
     el('weekly-line').textContent = weeklyStatus();
   }
 
-  var TAGS = { free: '', preview: 'PREVIEW', owned: 'OWNED', locked: 'LOCKED' };
+  var previewing = null; // a locked theme being tried; never saved
+  var themesOpen = false;
+
+  function savedThemeInUse() { return Themes.resolve(Store.theme); }
+
+  function themeTag(theme, inUse) {
+    if (inUse) return 'IN USE';
+    var state = Themes.ownership(theme.id);
+    if (state === 'owned') return 'OWNED';
+    if (state === 'locked') return Monetization.themePrice(theme.id) || 'LOCKED';
+    return state === 'preview' ? 'PREVIEW' : '';
+  }
 
   function renderThemes() {
     var list = el('theme-list');
     list.innerHTML = '';
+    var inUse = previewing ? null : savedThemeInUse();
     Themes.LIST.forEach(function (theme) {
-      var state = Themes.ownership(theme.id);
       var card = document.createElement('button');
       card.type = 'button';
-      card.className = 'theme-card' + (theme.id === Store.theme || (theme.id === 'default' && !Themes.find(Store.theme)) ? ' selected' : '');
-      card.disabled = state === 'locked';
+      var selected = theme.id === inUse || theme.id === previewing;
+      card.className = 'theme-card' + (selected ? ' selected' : '');
       var swatch = document.createElement('span');
       swatch.className = 'swatch';
       theme.swatch.forEach(function (color) {
@@ -64,22 +75,75 @@
       meta.appendChild(blurb);
       var tag = document.createElement('span');
       tag.className = 'tag';
-      tag.textContent = card.classList.contains('selected') ? 'IN USE' : TAGS[state];
+      tag.textContent = theme.id === previewing ? 'PREVIEW' : themeTag(theme, theme.id === inUse);
       card.appendChild(swatch);
       card.appendChild(meta);
       card.appendChild(tag);
       card.addEventListener('click', function () { chooseTheme(theme.id); });
       list.appendChild(card);
     });
-    el('themes-note').textContent = Themes.previewAll()
-      ? 'Preview: every theme is free to try for now. Looks only — commands, timing and colors never change.'
-      : 'Looks only. Commands, timing and colors never change.';
+    renderThemeBuy();
+  }
+
+  function renderThemeBuy() {
+    var bar = el('theme-buy');
+    bar.classList.toggle('hidden', !previewing);
+    if (!previewing) return;
+    var theme = Themes.find(previewing);
+    var state = Monetization.getState();
+    var price = Monetization.themePrice(previewing);
+    el('theme-buy-note').textContent = theme.name + ' is a preview. Unlock it to keep it \u2014 a one-time purchase, looks only.';
+    var button = el('btn-theme-buy');
+    if (!state.supported) {
+      button.textContent = 'Available in the iOS app';
+      button.disabled = true;
+    } else if (!state.ready || !price) {
+      button.textContent = state.ready ? 'Unavailable right now' : 'Checking App Store...';
+      button.disabled = true;
+    } else {
+      button.textContent = 'UNLOCK - ' + price;
+      button.disabled = state.busy || transitioning;
+    }
   }
 
   function chooseTheme(id) {
-    var applied = Themes.apply(id);
-    Store.setTheme(applied);
+    if (Themes.canUse(id)) {
+      previewing = null;
+      Store.setTheme(id);
+      Themes.apply(id);
+    } else {
+      previewing = id; // try before you buy; reverts when leaving the screen
+      Themes.preview(id);
+    }
     renderThemes();
+  }
+
+  function leaveThemes() {
+    previewing = null;
+    themesOpen = false;
+    Themes.apply(Store.theme);
+    UI.show('home');
+  }
+
+  function buyPreviewedTheme() {
+    var id = previewing;
+    if (!id) return;
+    Monetization.purchaseTheme(id).then(function (result) {
+      if (result.status === 'purchased') { UI.toast('Theme unlocked. Thank you!'); chooseTheme(id); }
+      else if (result.status === 'pending') UI.toast('Purchase awaiting approval. The theme unlocks once Apple confirms it.', 5000);
+      else UI.toast('Purchase cancelled. You have not been charged.');
+    }).catch(function (error) {
+      reportMonetizationError(error, 'Purchase failed. Please try again.');
+    });
+  }
+
+  // Once StoreKit has reported what the player owns, show their saved theme if they still
+  // own it (a refund drops them to Classic for display but keeps the saved choice, so a
+  // re-purchase or a late entitlement restores it). Never run before ownership is known.
+  function reconcileTheme(state) {
+    if (!state.ready && state.supported) return;
+    if (!previewing) Themes.apply(Store.theme);
+    if (themesOpen) renderThemes();
   }
 
   function startGame() { beginRun(null); }
@@ -216,7 +280,7 @@
     el('btn-store').classList.toggle('hidden', !state.supported);
     el('btn-over-store').classList.toggle('hidden', !state.supported || state.adsRemoved);
     [
-      'btn-play', 'btn-weekly', 'btn-again', 'btn-share', 'btn-home', 'btn-how', 'btn-how-back',
+      'btn-play', 'btn-weekly', 'btn-again', 'btn-theme-buy', 'btn-theme-restore', 'btn-share', 'btn-home', 'btn-how', 'btn-how-back',
       'btn-accept', 'btn-skip-challenge', 'btn-store', 'btn-over-store', 'btn-store-back'
     ].forEach(function (id) { el(id).disabled = state.busy || transitioning; });
     el('btn-remove-ads').disabled = state.busy || transitioning || !state.ready || state.adsRemoved ||
@@ -234,6 +298,7 @@
     if (state.message && state.message !== lastMonetizationMessage) UI.toast(state.message, 5000);
     lastMonetizationMessage = state.message;
     renderBreakNotice();
+    reconcileTheme(state);
   }
 
   function initializeMonetization() {
@@ -305,8 +370,10 @@
       renderAdDiagnostics();
     });
     el('btn-how-back').addEventListener('click', function () { UI.show('home'); });
-    el('btn-themes').addEventListener('click', function () { renderThemes(); UI.show('themes'); });
-    el('btn-themes-back').addEventListener('click', function () { UI.show('home'); });
+    el('btn-themes').addEventListener('click', function () { themesOpen = true; renderThemes(); UI.show('themes'); });
+    el('btn-themes-back').addEventListener('click', leaveThemes);
+    el('btn-theme-buy').addEventListener('click', buyPreviewedTheme);
+    el('btn-theme-restore').addEventListener('click', function () { el('btn-restore').click(); });
     el('btn-accept').addEventListener('click', function () {
       if (challenger && challenger.weekId) startWeekly(); else startGame();
     });
@@ -365,8 +432,9 @@
     Engine.onUpdate(function (s) { el('score').textContent = s; });
     Engine.onGameOver(renderGameOver);
 
-    var appliedTheme = Themes.apply(Store.theme);
-    if (appliedTheme !== Store.theme) Store.setTheme(appliedTheme);
+    // Ownership is unknown until StoreKit reports it, so show the saved theme on trust and
+    // reconcile later. Never rewrite the saved choice here: that would downgrade paying players.
+    Themes.applyTrusted(Store.theme);
     el('btn-themes').classList.toggle('hidden', !Themes.enabled());
     LeaderboardUI.init({ playerName: playerName });
 

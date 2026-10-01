@@ -2,16 +2,16 @@
  * A theme sets data-theme on <html>; css/styles.css maps it to color/font tokens.
  * Themes never change hitboxes, timing, or the five gameplay colors.
  *
- * Ownership: 'default' is always free. Until theme purchases are wired to StoreKit,
- * PREVIEW_ALL lets every theme be tried. Before release, theme purchases must
- * replace PREVIEW_ALL (see MONETIZATION_ROADMAP.md, Story 2.1) and ENABLED must be
- * true only when that is done.
+ * Ownership: 'default' is always free. Every other theme is a separate non-consumable
+ * StoreKit product, verified natively (see MonetizationManager.swift) and exposed through
+ * Monetization.ownsTheme(). Locked themes can be previewed but not saved. PREVIEW_ALL is a
+ * development switch that makes everything usable; it must be false in release builds.
  */
 (function (global) {
   'use strict';
 
-  var ENABLED = true;      // show the Themes entry point
-  var PREVIEW_ALL = true;  // everything is tryable; no purchases yet
+  var ENABLED = true;
+  var PREVIEW_ALL = false;
 
   var LIST = Object.freeze([
     Object.freeze({ id: 'default', name: 'Classic', blurb: 'The original dark look.',
@@ -24,16 +24,18 @@
       swatch: ['#050b1a', '#38bdf8', '#818cf8'] })
   ]);
 
-  // Placeholder for verified StoreKit entitlements (Story 2.1). Returns true when the
-  // player owns the theme. Intentionally false until purchases are implemented.
-  function entitled() { return false; }
+  // True when StoreKit has verified that the player owns this theme.
+  function entitled(id) {
+    var m = global.Monetization;
+    return !!(m && typeof m.ownsTheme === 'function' && m.ownsTheme(id));
+  }
 
   function find(id) {
     for (var i = 0; i < LIST.length; i++) if (LIST[i].id === id) return LIST[i];
     return null;
   }
 
-  // 'free' | 'preview' | 'owned' | 'locked'
+  // 'free' | 'owned' | 'preview' (dev switch) | 'locked'
   function ownership(id) {
     if (!find(id)) return 'locked';
     if (id === 'default') return 'free';
@@ -43,18 +45,38 @@
 
   function canUse(id) { return ownership(id) !== 'locked'; }
 
-  // Falls back to the default for unknown or unusable ids, so a stale saved
-  // theme can never leave the game unreadable.
+  // Falls back to the default for unknown or unusable ids, so a stale saved theme
+  // (e.g. a refunded purchase) can never leave the game in a theme the player lost.
   function resolve(id) { return canUse(id) ? id : 'default'; }
 
+  function setAttribute(id) {
+    var root = global.document && global.document.documentElement;
+    if (!root) return;
+    if (id === 'default') root.removeAttribute('data-theme');
+    else root.setAttribute('data-theme', id);
+  }
+
+  // Normal selection: only themes the player may use. Returns the theme actually applied.
   function apply(id) {
     var resolved = ENABLED ? resolve(id) : 'default';
-    var root = global.document && global.document.documentElement;
-    if (root) {
-      if (resolved === 'default') root.removeAttribute('data-theme');
-      else root.setAttribute('data-theme', resolved);
-    }
+    setAttribute(resolved);
     return resolved;
+  }
+
+  // At launch, before StoreKit has reported ownership, show the saved theme on trust so a
+  // paying player never sees a flash of Classic. Callers must reconcile once ownership is
+  // known (apply() would otherwise downgrade them and overwrite their saved choice).
+  function applyTrusted(id) {
+    var known = ENABLED && find(id) ? id : 'default';
+    setAttribute(known);
+    return known;
+  }
+
+  // Try a theme without owning it. Not saved; callers restore with apply(savedId).
+  function preview(id) {
+    var known = find(id) ? id : 'default';
+    setAttribute(known);
+    return known;
   }
 
   global.Themes = {
@@ -65,6 +87,8 @@
     ownership: ownership,
     canUse: canUse,
     resolve: resolve,
-    apply: apply
+    apply: apply,
+    applyTrusted: applyTrusted,
+    preview: preview
   };
 })(window);

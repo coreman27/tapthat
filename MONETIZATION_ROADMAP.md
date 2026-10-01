@@ -283,23 +283,26 @@ Do not build the larger store to compensate for an unproven game loop.
 
 ### Story 2.1 - A small, readable theme shop
 
-**Status:** the theme system and three preview themes (Neon Arcade, Hacker Terminal,
-Space Station) are built on the `themes` branch, with contrast and "gameplay colors
-never change" tests. **Not built:** purchases. The native StoreKit code supports one
-product; selling themes needs multi-product support, restore, and App Store Connect
-products. Themes are a free preview until then and must not ship enabled.
+**Status:** built and tested on the `themes` branch: three themes (Neon Arcade, Hacker
+Terminal, Space Station), live preview, separate non-consumable StoreKit products per
+theme with restore and refund handling, contrast/"gameplay colors never change" tests,
+and a launch-time guard so paying players are never downgraded. **Not done:** creating the
+three products in App Store Connect (they need real prices, localization and review
+screenshots), sandbox/TestFlight validation of purchase, restore and refund on a real
+build, and the age-rating/ad-targeting review for the artwork before release.
 
 Candidate themes: **1980s Arcade, Hacker Terminal, Grandma's Phone, Corporate
 Hell, Kindergarten, Vegas, Horror, Retro iPhone, Game Show, and Space Station.**
 These are concept names; final names, artwork, and sound must be original or
 properly licensed, with no implied third-party endorsement.
 
-- [ ] Ship only 2-3 initial themes, with previews and an easy return to the default.
+- [x] Ship only 2-3 initial themes, with previews and an easy return to the default.
 - [ ] Sell individual permanent unlocks or clearly priced bundles; keep a good
   free default and some earnable cosmetics.
-- [ ] Change presentation only. Preserve hitboxes, timing, semantic challenge
-  colors, and legibility; test color-vision and reduced-motion settings.
-- [ ] Use verified, restorable non-consumable entitlements; no paid random loot boxes.
+- [x] Change presentation only. Preserve hitboxes, timing, semantic challenge
+  colors, and legibility (contrast tested). Color-vision and reduced-motion testing on
+  device are still open.
+- [x] Use verified, restorable non-consumable entitlements; no paid random loot boxes.
 - [ ] Review ad targeting, age-rating, and child-audience implications before
   marketing childlike, horror, or gambling-themed artwork.
 

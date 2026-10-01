@@ -299,6 +299,7 @@ test('UI preserves celebration, passes previous best, and prevents double-tap re
     return elements.get(id);
   }
   let finishGame, starts = 0, records = 0, screen;
+  const themeWrites = [], trusted = [];
   Object.assign(f.context, {
     document: {
       hidden: false, readyState: 'complete', getElementById: element,
@@ -309,12 +310,14 @@ test('UI preserves celebration, passes previous best, and prevents double-tap re
       setBest(score) { const isBest = score > this.best; if (isBest) this.best = score; return isBest; },
       recordGame() { records++; },
       weeklyBest() { return 0; }, recordWeekly() { return false; },
-      theme: 'default', setTheme() {}
+      theme: 'terminal', setTheme(id) { themeWrites.push(id); }
     },
     LeaderboardUI: { init() {}, afterWeeklyRun() {} },
     Themes: {
       LIST: [], enabled: () => false, previewAll: () => false,
-      apply: (id) => id || 'default', find: () => null, ownership: () => 'free'
+      apply: (id) => id || 'default', applyTrusted: (id) => { trusted.push(id); return id; },
+      preview: (id) => id, resolve: (id) => id, canUse: () => true,
+      find: () => null, ownership: () => 'free'
     },
     Weekly: {
       weekId: () => '2026-W40', msUntilReset: () => 3 * 86400000,
@@ -333,6 +336,8 @@ test('UI preserves celebration, passes previous best, and prevents double-tap re
   await new Promise(resolve => setImmediate(resolve));
   assert.equal(element('purchase-status').textContent, '', 'no development ad explanation on the purchase screen');
   assert.equal(element('btn-remove-ads').textContent, 'Remove Ads - $4.99');
+  assert.deepEqual(trusted, ['terminal'], 'a saved theme is shown on trust at launch, before ownership is known');
+  assert.deepEqual(themeWrites, [], 'launch never rewrites the saved theme (that would downgrade paying players)');
   element('btn-how').listeners.click();
   assert.equal(screen, 'how');
   assert.equal(JSON.parse(element('ad-diagnostics-report').value).diagnosticsEnabled, false);
@@ -363,4 +368,137 @@ test('UI preserves celebration, passes previous best, and prevents double-tap re
   assert.equal(starts, 3);
   assert.equal(screen, 'game');
   assert.equal(element('btn-again').disabled, false);
+});
+
+
+// ---- cosmetic theme purchases ----
+const THEME_ID = 'com.coreyhall.donttapthat.theme.arcade';
+const themeState = (overrides = {}) => nativeState({
+  ownedThemes: [], themePrices: { [THEME_ID]: '$0.99' }, ...overrides
+});
+
+test('theme ownership and prices come from native state; the app reads them by short key', async () => {
+  const f = setup({ state: themeState({ ownedThemes: [THEME_ID] }) });
+  await f.client.initialize();
+  assert.equal(f.client.ownsTheme('arcade'), true);
+  assert.equal(f.client.ownsTheme('terminal'), false);
+  assert.equal(f.client.themePrice('arcade'), '$0.99');
+  assert.equal(f.client.themePrice('terminal'), null);
+  assert.equal(f.client.getState().adsRemoved, false, 'owning a theme says nothing about ads');
+});
+
+test('malformed theme data is ignored without breaking ads or Remove Ads', async () => {
+  for (const bad of [
+    { ownedThemes: 'arcade' }, { ownedThemes: [1, 2] }, { ownedThemes: null },
+    { themePrices: [] }, { themePrices: 'x' }, { themePrices: { [THEME_ID]: 99 } }
+  ]) {
+    const f = setup({ state: nativeState(bad) });
+    const state = await f.client.initialize();
+    assert.equal(state.ready, true, JSON.stringify(bad));
+    assert.equal(state.productAvailable, true);
+    assert.equal(state.price, '$4.99');
+    assert.deepEqual([...state.ownedThemes], [], JSON.stringify(bad));
+    assert.equal(f.client.themePrice('arcade'), null);
+  }
+});
+
+test('buying a theme sends the full product id and records ownership', async () => {
+  let sent;
+  const f = setup({
+    state: themeState(),
+    plugin: { async purchaseTheme(arg) { sent = arg; return { status: 'purchased', id: arg.id, ownedThemes: [THEME_ID] }; } }
+  });
+  await f.client.initialize();
+  const result = await f.client.purchaseTheme('arcade');
+  assert.deepEqual({ ...sent }, { id: THEME_ID });
+  assert.equal(result.status, 'purchased');
+  assert.equal(f.client.ownsTheme('arcade'), true);
+  assert.equal(f.client.getState().adsRemoved, false, 'a theme purchase never removes ads');
+  assert.equal(f.calls.purchase, 0, 'the Remove Ads purchase was not triggered');
+});
+
+test('themes that are already owned or unavailable never reach the native purchase call', async () => {
+  let nativeCalls = 0;
+  const plugin = { async purchaseTheme() { nativeCalls++; return {}; } };
+  const owned = setup({ state: themeState({ ownedThemes: [THEME_ID] }), plugin });
+  await owned.client.initialize();
+  assert.deepEqual({ ...(await owned.client.purchaseTheme('arcade')) }, { status: 'purchased', id: THEME_ID });
+  const missing = setup({ state: themeState(), plugin });
+  await missing.client.initialize();
+  await assert.rejects(() => missing.client.purchaseTheme('terminal'), /unavailable/);
+  const notReady = setup({ state: themeState(), plugin });
+  await assert.rejects(() => notReady.client.purchaseTheme('arcade'), /not ready/);
+  assert.equal(nativeCalls, 0);
+});
+
+test('cancelled and pending theme purchases grant nothing', async () => {
+  for (const status of ['cancelled', 'pending']) {
+    const f = setup({
+      state: themeState(),
+      plugin: { async purchaseTheme(arg) { return { status, id: arg.id, ownedThemes: [] }; } }
+    });
+    await f.client.initialize();
+    assert.equal((await f.client.purchaseTheme('arcade')).status, status);
+    assert.equal(f.client.ownsTheme('arcade'), false, status);
+  }
+});
+
+test('an unverifiable theme purchase result is rejected and grants nothing', async () => {
+  const bad = [
+    null, {}, { status: 'purchased' },
+    { status: 'bogus', id: THEME_ID, ownedThemes: [THEME_ID] },
+    { status: 'purchased', id: 'com.coreyhall.donttapthat.theme.space', ownedThemes: [THEME_ID] },
+    { status: 'purchased', id: THEME_ID, ownedThemes: [] },
+    { status: 'purchased', id: THEME_ID, ownedThemes: 'arcade' },
+    { status: 'cancelled', id: THEME_ID, ownedThemes: [7] }
+  ];
+  for (const result of bad) {
+    const f = setup({ state: themeState(), plugin: { async purchaseTheme() { return result; } } });
+    await f.client.initialize();
+    await assert.rejects(() => f.client.purchaseTheme('arcade'), /could not be verified/, JSON.stringify(result));
+    assert.equal(f.client.ownsTheme('arcade'), false);
+    assert.equal(f.client.getState().busy, false, 'busy is released after a failure');
+  }
+});
+
+test('theme purchase is exclusive with other purchases and ads', async () => {
+  let release;
+  const f = setup({
+    state: themeState(),
+    plugin: { purchaseTheme: (arg) => new Promise((resolve) => { release = () => resolve({ status: 'purchased', id: arg.id, ownedThemes: [THEME_ID] }); }) }
+  });
+  await f.client.initialize();
+  const pending = f.client.purchaseTheme('arcade');
+  assert.equal(f.client.getState().busy, true);
+  await assert.rejects(() => f.client.purchase(), /finish the current/);
+  await assert.rejects(() => f.client.restore(), /finish the current/);
+  release();
+  await pending;
+  assert.equal(f.client.getState().busy, false);
+});
+
+test('native updates (refund, other device, Ask to Buy approval) change theme ownership live', async () => {
+  const f = setup({ state: themeState() });
+  await f.client.initialize();
+  assert.equal(f.client.ownsTheme('arcade'), false);
+  f.emit(themeState({ ownedThemes: [THEME_ID] }));
+  assert.equal(f.client.ownsTheme('arcade'), true);
+  f.emit(themeState({ ownedThemes: [] })); // refunded
+  assert.equal(f.client.ownsTheme('arcade'), false);
+});
+
+test('restoring purchases refreshes theme ownership from the native state', async () => {
+  const f = setup({
+    state: themeState(),
+    plugin: { async restorePurchases() { return themeState({ ownedThemes: [THEME_ID], adsRemoved: false }); } }
+  });
+  await f.client.initialize();
+  await f.client.restore();
+  assert.equal(f.client.ownsTheme('arcade'), true);
+});
+
+test('theme purchase is unavailable outside the native iOS app', async () => {
+  const f = setup({ web: true });
+  await assert.rejects(() => f.client.purchaseTheme('arcade'), /not ready/);
+  assert.equal(f.client.ownsTheme('arcade'), false);
 });

@@ -7,13 +7,14 @@ import UIKit
 import UserMessagingPlatform
 
 private enum MonetizationError: LocalizedError {
-    case timedOut, verificationFailed, productUnavailable, presentationUnavailable
+    case timedOut, verificationFailed, productUnavailable, themeUnavailable, presentationUnavailable
 
     var errorDescription: String? {
         switch self {
         case .timedOut: return "The service took too long to respond. Please try again."
         case .verificationFailed: return "Your purchase could not be verified. Ads are paused; try Restore Purchases."
         case .productUnavailable: return "Remove Ads is unavailable from the App Store. Please try again later."
+        case .themeUnavailable: return "That theme is unavailable from the App Store. Please try again later."
         case .presentationUnavailable: return "Return to the app and close other screens, then try again."
         }
     }
@@ -67,6 +68,10 @@ final class MonetizationManager: NSObject, FullScreenContentDelegate {
     private var entitlementsVerified = false
     private var entitlementRevision = 0
     private var product: Product?
+    // Cosmetic theme unlocks: separate non-consumable products. They never affect ads.
+    private let themeProductIDs: [String]
+    private var themeProducts: [String: Product] = [:]
+    private var ownedThemes: Set<String> = []
     private var initialized = false
     private var busy = false
     private var consentCompleted = false
@@ -94,6 +99,7 @@ final class MonetizationManager: NSObject, FullScreenContentDelegate {
         let info = Bundle.main
         productID = info.object(forInfoDictionaryKey: "MonetizationRemoveAdsProductID") as? String
             ?? "com.coreyhall.donttapthat.removeads"
+        themeProductIDs = info.object(forInfoDictionaryKey: "MonetizationThemeProductIDs") as? [String] ?? []
         appID = info.object(forInfoDictionaryKey: "GADApplicationIdentifier") as? String ?? ""
         testAds = info.object(forInfoDictionaryKey: "MonetizationTestAds") as? Bool ?? true
         adsEnabled = info.object(forInfoDictionaryKey: "MonetizationAdsEnabled") as? Bool ?? false
@@ -126,6 +132,10 @@ final class MonetizationManager: NSObject, FullScreenContentDelegate {
             "needsConsent": adsConfigured && !adsRemoved && !consentCompleted
         ]
         if let product { result["price"] = product.displayPrice }
+        var themePrices = JSObject()
+        for (id, themeProduct) in themeProducts { themePrices[id] = themeProduct.displayPrice }
+        result["ownedThemes"] = ownedThemes.sorted()
+        result["themePrices"] = themePrices
         if let message { result["message"] = message }
         return result
     }
@@ -161,6 +171,10 @@ final class MonetizationManager: NSObject, FullScreenContentDelegate {
                 guard !Task.isCancelled, let self else { return }
                 switch result {
                 case .verified(let transaction):
+                    if self.themeProductIDs.contains(transaction.productID) {
+                        await self.handleThemeTransaction(transaction)
+                        continue
+                    }
                     guard transaction.productID == productID, transaction.productType == .nonConsumable else { continue }
                     self.entitlementRevision += 1
                     self.entitlementsVerified = false
@@ -193,6 +207,7 @@ final class MonetizationManager: NSObject, FullScreenContentDelegate {
                 guard let self, self.initialized, !self.busy else { return }
                 do {
                     try await self.refreshEntitlements()
+                    await self.refreshThemesQuietly()
                     self.emitState()
                     self.preloadAd()
                 } catch {
@@ -268,6 +283,7 @@ final class MonetizationManager: NSObject, FullScreenContentDelegate {
         }
         do { try await fetchProduct() }
         catch { report("Remove Ads pricing is unavailable. Check your connection and try again.", error: error) }
+        await loadThemesQuietly()
         updatePrivacyRequirement()
         if entitlementsVerified && !adsRemoved && adsConfigured {
             do { try await gatherConsent() }
@@ -564,6 +580,7 @@ final class MonetizationManager: NSObject, FullScreenContentDelegate {
             // Explicit user action only; AppStore.sync may show Apple's authentication UI.
             try await AppStore.sync()
             try await refreshEntitlements()
+            await refreshThemesQuietly()
             emitState()
             call.resolve(state)
             preloadAd()
@@ -600,6 +617,117 @@ final class MonetizationManager: NSObject, FullScreenContentDelegate {
             updatePrivacyRequirement()
             report("Privacy choices could not be opened. Ads are paused; please try again later.", error: error)
             call.reject("Privacy choices could not be opened. Please try again later.")
+        }
+    }
+}
+
+// MARK: - Cosmetic theme unlocks
+//
+// Themes are separate non-consumable products (MonetizationThemeProductIDs in Info.plist).
+// They are presentation-only and never touch ad state; this code deliberately does not share
+// the Remove Ads entitlement revision logic. Ownership is always derived from verified
+// StoreKit transactions, so reinstalling or restoring on another device brings themes back.
+extension MonetizationManager {
+    fileprivate func fetchThemeProducts() async throws {
+        guard !themeProductIDs.isEmpty else { return }
+        let ids = themeProductIDs
+        let products = try await Deadline<[Product]>().run(seconds: 8) {
+            try await Product.products(for: ids)
+        }
+        var found: [String: Product] = [:]
+        for candidate in products where ids.contains(candidate.id) && candidate.type == .nonConsumable {
+            found[candidate.id] = candidate
+        }
+        themeProducts = found
+    }
+
+    fileprivate func refreshThemeEntitlements() async throws {
+        guard !themeProductIDs.isEmpty else { return }
+        let ids = Set(themeProductIDs)
+        let owned = try await Deadline<Set<String>>().run(seconds: 8) {
+            var owned = Set<String>()
+            for await result in Transaction.currentEntitlements {
+                try Task.checkCancellation()
+                // Unverified transactions never grant a theme.
+                guard case .verified(let transaction) = result,
+                      ids.contains(transaction.productID),
+                      transaction.productType == .nonConsumable,
+                      transaction.revocationDate == nil else { continue }
+                owned.insert(transaction.productID)
+            }
+            return owned
+        }
+        ownedThemes = owned
+    }
+
+    // Theme data is optional polish: failures are logged, never block play or ads.
+    fileprivate func refreshThemesQuietly() async {
+        do { try await refreshThemeEntitlements() }
+        catch { logger.notice("Theme ownership could not be refreshed. Error code: \((error as NSError).code)") }
+    }
+
+    fileprivate func loadThemesQuietly() async {
+        await refreshThemesQuietly()
+        do { try await fetchThemeProducts() }
+        catch { logger.notice("Theme pricing could not be loaded. Error code: \((error as NSError).code)") }
+    }
+
+    // Called from Transaction.updates: Ask to Buy approvals, purchases on another device, refunds.
+    fileprivate func handleThemeTransaction(_ transaction: Transaction) async {
+        if transaction.revocationDate == nil && !transaction.isUpgraded {
+            ownedThemes.insert(transaction.productID)
+        } else {
+            ownedThemes.remove(transaction.productID)
+        }
+        await transaction.finish()
+        emitState()
+    }
+
+    func purchaseTheme(_ call: CAPPluginCall) async {
+        guard let id = call.getString("id"), themeProductIDs.contains(id) else {
+            call.reject("Unknown theme.")
+            return
+        }
+        guard !busy else { call.reject("Monetization is busy. Please try again."); return }
+        busy = true
+        defer { busy = false }
+        message = nil
+        do {
+            await refreshThemesQuietly()
+            if ownedThemes.contains(id) {
+                emitState()
+                call.resolve(["status": "purchased", "id": id, "ownedThemes": ownedThemes.sorted()])
+                return
+            }
+            guard controller != nil else { throw MonetizationError.presentationUnavailable }
+            if themeProducts[id] == nil { try await fetchThemeProducts() }
+            guard let themeProduct = themeProducts[id] else { throw MonetizationError.themeUnavailable }
+            let result = try await themeProduct.purchase()
+            let status: String
+            switch result {
+            case .success(let verification):
+                guard case .verified(let transaction) = verification,
+                      transaction.productID == id,
+                      transaction.productType == .nonConsumable else {
+                    throw MonetizationError.verificationFailed
+                }
+                if transaction.revocationDate == nil && !transaction.isUpgraded { ownedThemes.insert(id) }
+                await transaction.finish()
+                guard ownedThemes.contains(id) else { throw MonetizationError.verificationFailed }
+                status = "purchased"
+            case .userCancelled:
+                status = "cancelled"
+            case .pending:
+                status = "pending"
+                message = "Purchase awaiting approval. The theme will unlock when Apple confirms it."
+            @unknown default:
+                throw MonetizationError.verificationFailed
+            }
+            emitState()
+            call.resolve(["status": status, "id": id, "ownedThemes": ownedThemes.sorted()])
+        } catch {
+            report("Theme purchase could not be completed. Check your connection or try Restore Purchases.", error: error)
+            call.reject("Theme purchase could not be completed. Please try again or Restore Purchases.")
         }
     }
 }

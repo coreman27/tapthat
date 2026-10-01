@@ -18,6 +18,8 @@
     privacyOptionsRequired: false,
     needsConsent: false,
     testAds: false,
+    ownedThemes: [],   // cosmetic theme product keys the player owns (verified by StoreKit)
+    themePrices: {},   // theme product id -> localized price string
     message: ''
   };
 
@@ -44,7 +46,20 @@
     state.needsConsent = value.needsConsent;
     state.testAds = value.testAds;
     state.message = value.message || '';
+    // Themes are optional polish: malformed theme data must never break ads or Remove Ads.
+    state.ownedThemes = Array.isArray(value.ownedThemes) && value.ownedThemes.every(isString) ? value.ownedThemes.slice() : [];
+    state.themePrices = cleanPrices(value.themePrices);
     publish();
+  }
+
+  function isString(x) { return typeof x === 'string'; }
+
+  function cleanPrices(prices) {
+    var out = {};
+    if (prices && typeof prices === 'object' && !Array.isArray(prices)) {
+      Object.keys(prices).forEach(function (id) { if (isString(prices[id])) out[id] = prices[id]; });
+    }
+    return out;
   }
 
   async function exclusive(action) {
@@ -148,6 +163,31 @@
     });
   }
 
+  var THEME_PREFIX = 'com.coreyhall.donttapthat.theme.';
+
+  // key is the short theme id used by the game, e.g. "arcade".
+  function themeProductId(key) { return THEME_PREFIX + key; }
+  function ownsTheme(key) { return state.ownedThemes.indexOf(themeProductId(key)) !== -1; }
+  function themePrice(key) { return state.themePrices[themeProductId(key)] || null; }
+
+  async function purchaseTheme(key) {
+    requireReady();
+    var id = themeProductId(key);
+    if (state.ownedThemes.indexOf(id) !== -1) return { status: 'purchased', id: id };
+    if (!state.themePrices[id]) throw new Error('That theme is unavailable in the App Store right now. Please try again later.');
+    return exclusive(async function () {
+      var result = await bridge.purchaseTheme({ id: id });
+      if (!result || ['purchased', 'cancelled', 'pending'].indexOf(result.status) === -1 || result.id !== id ||
+          !Array.isArray(result.ownedThemes) || !result.ownedThemes.every(isString) ||
+          (result.status === 'purchased' && result.ownedThemes.indexOf(id) === -1)) {
+        throw new Error('The purchase could not be verified. Try Restore Purchases before buying again.');
+      }
+      state.ownedThemes = result.ownedThemes.slice();
+      publish();
+      return result;
+    });
+  }
+
   async function restore() {
     requireReady();
     return exclusive(async function () {
@@ -174,6 +214,9 @@
     setDiagnosticsEnabled: function (enabled) { policy.setDiagnosticsEnabled(enabled); },
     clearDiagnostics: function () { policy.clearDiagnostics(); },
     purchase: purchase,
+    purchaseTheme: purchaseTheme,
+    ownsTheme: ownsTheme,
+    themePrice: themePrice,
     restore: restore,
     privacy: privacy,
     getState: snapshot,

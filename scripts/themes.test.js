@@ -107,29 +107,91 @@ function fakeDocument() {
   };
 }
 
-test('apply sets data-theme, falls back to default for unknown ids, clears for default', () => {
+// A Themes instance whose ownership comes from a fake Monetization, like the real app.
+function themesWith(owned) {
   const document = fakeDocument();
-  const { Themes: T } = load(['themes'], { document });
+  const monetization = { ownsTheme: (id) => owned.has(id) };
+  const ctx = load(['themes'], { document, Monetization: monetization });
+  return { T: ctx.Themes, document, owned };
+}
+
+test('ownership: default is free; others are locked until StoreKit says they are owned', () => {
+  const { T, owned } = themesWith(new Set());
+  assert.equal(T.ownership('default'), 'free');
+  assert.equal(T.ownership('nope'), 'locked');
+  ids.forEach((id) => assert.equal(T.ownership(id), 'locked', id));
+  owned.add('terminal');
+  assert.equal(T.ownership('terminal'), 'owned');
+  assert.equal(T.ownership('arcade'), 'locked', 'owning one theme does not unlock another');
+  assert.equal(T.previewAll(), false, 'the dev preview switch must be off in the shipped code');
+});
+
+test('apply only applies themes the player may use; locked ones fall back to default', () => {
+  const { T, document, owned } = themesWith(new Set());
+  assert.equal(T.apply('arcade'), 'default');
+  assert.equal(document.attrs['data-theme'], undefined);
+  owned.add('arcade');
   assert.equal(T.apply('arcade'), 'arcade');
   assert.equal(document.attrs['data-theme'], 'arcade');
   assert.equal(T.apply('does-not-exist'), 'default');
   assert.equal(document.attrs['data-theme'], undefined);
-  assert.equal(T.apply('terminal'), 'terminal');
   assert.equal(T.apply('default'), 'default');
-  assert.equal(document.attrs['data-theme'], undefined);
   assert.equal(T.apply(undefined), 'default');
 });
 
-test('ownership: default is free, others are preview until purchases exist', () => {
-  assert.equal(Themes.ownership('default'), 'free');
-  assert.equal(Themes.ownership('nope'), 'locked');
-  ids.forEach((id) => {
-    assert.equal(Themes.ownership(id), Themes.previewAll() ? 'preview' : 'locked');
-  });
-  // a locked theme can never be applied
+test('applyTrusted shows a saved theme before ownership is known (no flash for paying players)', () => {
+  const { T, document } = themesWith(new Set()); // StoreKit has not reported anything yet
+  assert.equal(T.applyTrusted('terminal'), 'terminal');
+  assert.equal(document.attrs['data-theme'], 'terminal');
+  assert.equal(T.applyTrusted('garbage'), 'default');
+  assert.equal(document.attrs['data-theme'], undefined);
+});
+
+test('a refunded theme reverts for display once ownership is known, and returns if re-owned', () => {
+  const { T, document, owned } = themesWith(new Set(['space']));
+  assert.equal(T.apply('space'), 'space');
+  owned.delete('space'); // refund / revocation
+  assert.equal(T.apply('space'), 'default');
+  assert.equal(document.attrs['data-theme'], undefined);
+  owned.add('space'); // repurchased or restored
+  assert.equal(T.apply('space'), 'space');
+});
+
+test('preview shows any known theme without owning or saving it', () => {
+  const { T, document } = themesWith(new Set());
+  assert.equal(T.preview('arcade'), 'arcade');
+  assert.equal(document.attrs['data-theme'], 'arcade');
+  assert.equal(T.ownership('arcade'), 'locked', 'previewing grants nothing');
+  assert.equal(T.canUse('arcade'), false);
+  assert.equal(T.preview('nope'), 'default');
+  // leaving the picker restores the real selection
+  assert.equal(T.apply('default'), 'default');
+  assert.equal(document.attrs['data-theme'], undefined);
+});
+
+test('themes work without a Monetization object (web build): only Classic is usable', () => {
   const document = fakeDocument();
   const ctx = load(['themes'], { document });
-  assert.equal(ctx.Themes.resolve('missing'), 'default');
+  assert.equal(ctx.Themes.apply('arcade'), 'default');
+  assert.equal(ctx.Themes.ownership('arcade'), 'locked');
+  assert.equal(ctx.Themes.preview('arcade'), 'arcade');
+});
+
+test('theme product ids line up across JS, Info.plist, StoreKit file and validator', () => {
+  const plist = read('ios/App/App/Info.plist');
+  const storekit = JSON.parse(read('ios/App/RemoveAds.storekit'));
+  const storekitIds = storekit.products.map((p) => p.productID);
+  ids.forEach((id) => {
+    const productId = 'com.coreyhall.donttapthat.theme.' + id;
+    assert.ok(plist.includes('<string>' + productId + '</string>'), id + ' in Info.plist');
+    assert.ok(storekitIds.includes(productId), id + ' in the local StoreKit file');
+    const product = storekit.products.find((p) => p.productID === productId);
+    assert.equal(product.type, 'NonConsumable', id + ' is non-consumable (permanent, restorable)');
+  });
+  const plistThemes = [...plist.matchAll(/<string>(com\.coreyhall\.donttapthat\.theme\.[a-z0-9]+)<\/string>/g)].map((m) => m[1]);
+  assert.equal(plistThemes.length, ids.length, 'every product in Info.plist is a listed theme');
+  const manager = read('ios/App/App/MonetizationManager.swift');
+  assert.match(manager, /MonetizationThemeProductIDs/);
 });
 
 test('selected theme persists in storage', () => {

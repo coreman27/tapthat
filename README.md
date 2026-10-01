@@ -126,7 +126,7 @@ who opens it in the same week plays that sequence and gets a head-to-head result
 after the week ends the link just says it has ended. Scores are local and shared by
 link only, so they are not verified. Shared leaderboards need a backend (roadmap Phase 4).
 
-### Themes (preview)
+### Themes (purchasable)
 
 `Themes` on the home screen opens a picker with Classic plus three cosmetic themes:
 Neon Arcade, Hacker Terminal and Space Station (`js/themes.js`, token blocks at the
@@ -138,13 +138,27 @@ end of `css/styles.css`). Rules, enforced by `scripts/themes.test.js`:
   are never overridden, so "TAP RED" means the same thing in every theme.
 - Every theme must keep body text at 7:1 contrast, muted text at 4.5:1, and every
   gameplay color at 3:1 against its background.
-- A saved theme that is unknown or no longer usable falls back to Classic.
 
-**Release gate:** purchases are not wired yet. `PREVIEW_ALL = true` in `js/themes.js`
-makes every theme free to try. Before shipping, theme unlocks must be verified,
-restorable non-consumable StoreKit products (the native purchase code currently
-supports a single product), `entitled()` must read them, and `PREVIEW_ALL` must be
-false. Until then keep `ENABLED = false` in release builds.
+**Purchases.** Each non-default theme is its own non-consumable StoreKit product
+(`com.coreyhall.donttapthat.theme.arcade|terminal|space`), permanent and restorable. The
+native side (`MonetizationManager.swift`, theme section) is deliberately separate from
+the Remove Ads logic and never touches ad state; ownership is derived from verified
+StoreKit transactions only. Locked themes can be previewed live and are not saved
+unless bought. `Themes.PREVIEW_ALL` is a dev-only switch and must stay `false`.
+
+Two launch behaviors worth knowing:
+
+- At launch the saved theme is shown **on trust** (`Themes.applyTrusted`) and reconciled
+  once StoreKit reports ownership. Launch never rewrites the saved choice, so a paying
+  player is never downgraded to Classic by a slow StoreKit response.
+- A refund drops the theme for display but keeps the saved choice, so restoring or
+  re-buying brings it back.
+
+**To sell them (App Store Connect, one per theme):** create a Non-Consumable with the
+product ID above, a price (the local StoreKit file uses $0.99 as a placeholder; the real
+price is whatever you set in App Store Connect), localization, availability, and a review
+screenshot of the theme picker. Submit them with the app version. Until a product exists
+in App Store Connect, that theme shows "Unavailable right now" and can still be previewed.
 
 ### Touch input
 

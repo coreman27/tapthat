@@ -1,34 +1,79 @@
 {
-  "identifier" : "A127304B-734B-48CD-8B08-75B4882DB2CB",
-  "nonRenewingSubscriptions" : [],
-  "products" : [
+  "identifier": "A127304B-734B-48CD-8B08-75B4882DB2CB",
+  "nonRenewingSubscriptions": [],
+  "products": [
     {
-      "displayPrice" : "4.99",
-      "familyShareable" : false,
-      "internalID" : "D3403417",
-      "localizations" : [
+      "displayPrice": "4.99",
+      "familyShareable": false,
+      "internalID": "D3403417",
+      "localizations": [
         {
-          "description" : "Permanently remove interstitial ads from Don't Tap That.",
-          "displayName" : "Remove Ads",
-          "locale" : "en_US"
+          "description": "Permanently remove interstitial ads from Don't Tap That.",
+          "displayName": "Remove Ads",
+          "locale": "en_US"
         }
       ],
-      "productID" : "com.coreyhall.donttapthat.removeads",
-      "referenceName" : "Remove Ads",
-      "type" : "NonConsumable"
+      "productID": "com.coreyhall.donttapthat.removeads",
+      "referenceName": "Remove Ads",
+      "type": "NonConsumable"
+    },
+    {
+      "displayPrice": "0.99",
+      "familyShareable": false,
+      "internalID": "T1A2C3D4",
+      "localizations": [
+        {
+          "description": "Neon Arcade look for Don't Tap That. Looks only; gameplay never changes.",
+          "displayName": "Neon Arcade",
+          "locale": "en_US"
+        }
+      ],
+      "productID": "com.coreyhall.donttapthat.theme.arcade",
+      "referenceName": "Neon Arcade Theme",
+      "type": "NonConsumable"
+    },
+    {
+      "displayPrice": "0.99",
+      "familyShareable": false,
+      "internalID": "T2B3D4E5",
+      "localizations": [
+        {
+          "description": "Hacker Terminal look for Don't Tap That. Looks only; gameplay never changes.",
+          "displayName": "Hacker Terminal",
+          "locale": "en_US"
+        }
+      ],
+      "productID": "com.coreyhall.donttapthat.theme.terminal",
+      "referenceName": "Hacker Terminal Theme",
+      "type": "NonConsumable"
+    },
+    {
+      "displayPrice": "0.99",
+      "familyShareable": false,
+      "internalID": "T3C4E5F6",
+      "localizations": [
+        {
+          "description": "Space Station look for Don't Tap That. Looks only; gameplay never changes.",
+          "displayName": "Space Station",
+          "locale": "en_US"
+        }
+      ],
+      "productID": "com.coreyhall.donttapthat.theme.space",
+      "referenceName": "Space Station Theme",
+      "type": "NonConsumable"
     }
   ],
-  "settings" : {
-    "_applicationInternalID" : "",
-    "_developerTeamID" : "",
-    "_failTransactionsEnabled" : false,
-    "_locale" : "en_US",
-    "_storefront" : "USA",
-    "_storeKitErrors" : []
+  "settings": {
+    "_applicationInternalID": "",
+    "_developerTeamID": "",
+    "_failTransactionsEnabled": false,
+    "_locale": "en_US",
+    "_storefront": "USA",
+    "_storeKitErrors": []
   },
-  "subscriptionGroups" : [],
-  "version" : {
-    "major" : 3,
-    "minor" : 0
+  "subscriptionGroups": [],
+  "version": {
+    "major": 3,
+    "minor": 0
   }
 }

@@ -34,6 +34,12 @@
 	<string>ca-app-pub-3940256099942544/4411468910</string>
 	<key>MonetizationRemoveAdsProductID</key>
 	<string>com.coreyhall.donttapthat.removeads</string>
+	<key>MonetizationThemeProductIDs</key>
+	<array>
+		<string>com.coreyhall.donttapthat.theme.arcade</string>
+		<string>com.coreyhall.donttapthat.theme.terminal</string>
+		<string>com.coreyhall.donttapthat.theme.space</string>
+	</array>
 	<key>SKAdNetworkItems</key>
 	<array>
 		<dict>

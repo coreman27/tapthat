@@ -12,6 +12,16 @@ app_id="$(read_key GADApplicationIdentifier)"
 unit_id="$(read_key MonetizationInterstitialAdUnitID)"
 product_id="$(read_key MonetizationRemoveAdsProductID)"
 
+# Theme unlock products (optional; every entry must be a well-formed app-scoped id).
+theme_index=0
+while theme_id="$(/usr/libexec/PlistBuddy -c "Print :MonetizationThemeProductIDs:$theme_index" "$plist" 2>/dev/null)"; do
+  if ! printf '%s\n' "$theme_id" | grep -Eq '^com\.coreyhall\.donttapthat\.theme\.[a-z0-9]+$'; then
+    echo "error: Invalid theme product id: $theme_id"
+    exit 1
+  fi
+  theme_index=$((theme_index + 1))
+done
+
 if [ -z "$product_id" ]; then
   echo "error: MonetizationRemoveAdsProductID must identify a non-consumable App Store product."
   exit 1
