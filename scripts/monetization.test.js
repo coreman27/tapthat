@@ -290,7 +290,8 @@ test('UI preserves celebration, passes previous best, and prevents double-tap re
           contains: name => classes.has(name),
           toggle: (name, enabled) => enabled ? classes.add(name) : classes.delete(name)
         },
-        addEventListener(event, handler) { this.listeners[event] = handler; }
+        addEventListener(event, handler) { this.listeners[event] = handler; },
+        blur() {}
       });
     }
     return elements.get(id);
