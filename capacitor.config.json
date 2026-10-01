@@ -6,7 +6,8 @@
     "iosScheme": "capacitor"
   },
   "ios": {
-    "contentInset": "always",
+    "contentInset": "never",
+    "scrollEnabled": false,
     "backgroundColor": "#0b0b12"
   }
 }

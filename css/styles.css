@@ -159,6 +159,12 @@ html, body {
 .instruction.warn { color: var(--danger); }
 
 /* ---------- Playfield ---------- */
+#screen-game {
+  /* Keep WebKit's pan/zoom recognizer from cancelling gameplay pointers. */
+  touch-action: none;
+  -webkit-touch-callout: none;
+}
+
 .playfield {
   position: relative;
   flex: 1;

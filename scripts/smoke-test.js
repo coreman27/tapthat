@@ -149,6 +149,71 @@ function findByCls(field, cls) { return field.children.find(function (c) { retur
   if (nb) { nb.dispatch('pointerdown', {}); assert(res === 'success', 'tapnumber: tapping correct number succeeds'); }
 })();
 
+console.log('\nTouch cancellation and repeated rounds');
+(function () {
+  let result = null;
+  const b = buildEnv(function (r) { result = r; });
+  const cleanups = [];
+  b.env.addCleanup = function (fn) { cleanups.push(fn); };
+  b.env.pick = function (items) { return items[0]; }; // SWIPE LEFT
+  W.Challenges.DEFS.find(function (d) { return d.id === 'swipe'; }).build(b.env);
+  b.field.dispatch('pointerdown', { clientX: 150, clientY: 150 });
+  b.field.dispatch('pointercancel', {});
+  b.field.dispatch('pointerup', { clientX: 80, clientY: 150 });
+  assert(result === null, 'cancelled swipe cannot resolve from a stale pointerup');
+  b.field.dispatch('pointerdown', { clientX: 150, clientY: 150 });
+  b.field.dispatch('pointerup', { clientX: 80, clientY: 150 });
+  assert(result === 'success', 'fresh swipe works after cancellation');
+  cleanups.forEach(function (fn) { fn(); });
+  assert(['pointerdown', 'pointerup', 'pointercancel'].every(function (event) {
+    return b.field._listeners[event].length === 0;
+  }), 'swipe cleanup removes all pointer handlers');
+})();
+
+(function () {
+  const originalTimeout = W.setTimeout;
+  const originalPick = W.Adaptive.pickNext;
+  const timers = [];
+  W.setTimeout = function (fn, delay) { timers.push({ fn, delay }); return timers.length; };
+  let round = 0;
+  W.Adaptive.pickNext = function () {
+    const id = round++ % 2 === 0 ? 'tapme' : 'taptwice';
+    return W.Challenges.DEFS.find(function (d) { return d.id === id; });
+  };
+  const field = makeEl('div');
+  W.Engine.init({
+    field, instruction: makeEl('div'), timerFill: makeEl('div'),
+    notifLayer: makeEl('div'), screenGame: makeEl('div'), scoreEl: makeEl('div')
+  });
+  function advance(delay) {
+    const i = timers.findIndex(function (timer) { return timer.delay === delay; });
+    if (i < 0) throw new Error('Missing round transition timer: ' + delay);
+    timers.splice(i, 1)[0].fn();
+  }
+  try {
+    W.Engine.start();
+    advance(550);
+    for (let i = 0; i < 20; i++) {
+      const button = field.children[field.children.length - 1];
+      button.dispatch('pointerdown', {});
+      button.dispatch('pointerup', {});
+      if (i % 2 === 1) {
+        assert(W.Engine.getScore() === i, 'round ' + i + ': TAP TWICE waits for second tap');
+        button.dispatch('pointerdown', {});
+        button.dispatch('pointerup', {});
+      }
+      assert(W.Engine.getScore() === i + 1, 'round ' + i + ': taps advance score');
+      button.dispatch('pointerdown', {});
+      assert(W.Engine.getScore() === i + 1, 'round ' + i + ': old button handler removed');
+      if (i < 19) advance(170);
+    }
+  } finally {
+    W.Engine.stop();
+    W.setTimeout = originalTimeout;
+    W.Adaptive.pickNext = originalPick;
+  }
+})();
+
 console.log('\n4) Adaptive selection + timing');
 (function () {
   for (var s = 0; s <= 50; s += 5) {

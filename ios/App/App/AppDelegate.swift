@@ -7,8 +7,23 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     var window: UIWindow?
 
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
-        // Override point for customization after application launch.
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(restoreGameViewport),
+            name: UIResponder.keyboardDidHideNotification,
+            object: nil
+        )
         return true
+    }
+
+    @objc private func restoreGameViewport() {
+        guard let controller = window?.rootViewController as? CAPBridgeViewController,
+              let webView = controller.webView else { return }
+
+        // WebKit can retain its focus-reveal offset after the keyboard closes,
+        // even when user scrolling is disabled. CSS handles our safe-area padding.
+        webView.scrollView.contentInset = .zero
+        webView.scrollView.setContentOffset(.zero, animated: false)
     }
 
     func applicationWillResignActive(_ application: UIApplication) {

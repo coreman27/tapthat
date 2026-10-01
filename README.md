@@ -75,6 +75,19 @@ In Xcode: pick your device/simulator and press ▶. To submit to the App Store, 
 
 New challenge types unlock as your score climbs (see `minScore` in `js/challenges.js`).
 
+### Touch input
+
+The game screen owns touch gestures (`touch-action: none`) so WebKit does not
+take over swipes/holds for browser panning or zooming. This is scoped to gameplay,
+not the home screen/name input. Cancelled swipes reset their tracking state.
+The native WebView disables scrolling and automatic content insets; CSS owns
+safe-area padding. On `keyboardDidHide`, the app clears the WebView's retained
+content inset and scroll offset so editing the name cannot leave gameplay shifted.
+When checking an iOS build, test repeated taps, TAP TWICE, HOLD, and SWIPE across
+multiple rounds, including immediately after editing the name. Also dismiss the
+keyboard without starting a game and repeat name editing: the background should
+return to both screen edges and targets should respond at their visible positions.
+
 ### It gets personally evil
 
 `js/adaptive.js` tracks your fail rate per category in `localStorage` and weights the next challenge toward whatever you keep blowing. Bad at color? You'll drown in color. Bad at `WAIT`? Enjoy. Difficulty (time pressure, decoy count, movement speed) ramps from score 0 → ~45.

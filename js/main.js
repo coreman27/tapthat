@@ -19,6 +19,10 @@
   function startGame() {
     Sound.unlock();
     Store.setName((el('playerName').value || '').trim());
+    // Dismiss the keyboard; iOS restores the viewport when dismissal completes.
+    var nameInput = el('playerName');
+    if (nameInput) nameInput.blur();
+    if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
     UI.show('game');
     Engine.start();
   }
@@ -65,9 +69,10 @@
   }
 
   function doShare() {
-    var score = Engine.getScore();
+    var score = Math.max(Store.best | 0, Engine.getScore() | 0);
     var name = playerName();
     Share.share(name, score).then(function (res) {
+      if (res.canceled) return;
       if (res.method === 'clipboard') UI.toast('Challenge link copied \u2014 paste it in a text!');
       else if (!res.ok) UI.toast('Link ready: ' + res.url);
     });

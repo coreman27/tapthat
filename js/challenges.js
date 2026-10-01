@@ -226,11 +226,14 @@
         var okY = d.dy !== 0 && (Math.abs(dy) > Math.abs(dx)) && Math.sign(dy) === d.dy;
         if (okX || okY) env.success(); else env.fail('Wrong way.');
       }
+      function cancel() { tracking = false; }
       env.field.addEventListener('pointerdown', down);
       env.field.addEventListener('pointerup', up);
+      env.field.addEventListener('pointercancel', cancel);
       env.addCleanup(function () {
         env.field.removeEventListener('pointerdown', down);
         env.field.removeEventListener('pointerup', up);
+        env.field.removeEventListener('pointercancel', cancel);
       });
     }
   });
