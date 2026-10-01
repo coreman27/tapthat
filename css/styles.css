@@ -94,7 +94,7 @@ html, body {
   justify-content: center;
 }
 .name-row label { color: var(--muted); font-size: 15px; }
-#playerName {
+#playerName, #lb-code-input {
   flex: 1;
   background: var(--bg2);
   border: 1px solid var(--line);
@@ -105,7 +105,7 @@ html, body {
   text-align: center;
   outline: none;
 }
-#playerName:focus { border-color: var(--accent); }
+#playerName:focus, #lb-code-input:focus { border-color: var(--accent); }
 
 /* ---------- Buttons ---------- */
 .big-btn {
@@ -388,3 +388,16 @@ button:disabled:active { transform: none; }
 .theme-card .meta strong { display: block; font-size: 17px; }
 .theme-card .meta span { display: block; font-size: 13px; color: var(--muted); }
 .theme-card .tag { flex: none; font-size: 12px; font-weight: 800; letter-spacing: 0.06em; color: var(--accent); }
+
+/* ---------- Leaderboard ---------- */
+.lb-tabs { display: flex; gap: 6px; }
+.lb-tab { text-decoration: none; padding: 8px 16px; border-radius: 99px; border: 1px solid var(--line); }
+.lb-tab.active { color: var(--fg); border-color: var(--accent); }
+.lb-list { list-style: none; margin: 0; padding: 0; width: 100%; max-width: 340px; display: flex; flex-direction: column; gap: 6px; }
+.lb-list li { display: flex; gap: 10px; align-items: baseline; padding: 8px 12px; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; font-variant-numeric: tabular-nums; }
+.lb-list li.me { border-color: var(--accent); }
+.lb-list .rk { width: 2.2em; color: var(--muted); }
+.lb-list .nm { flex: 1; text-align: left; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lb-list .sc { font-weight: 800; }
+.lb-friends { width: 100%; max-width: 340px; display: flex; flex-direction: column; gap: 10px; align-items: center; }
+.lb-friends .name-row input { text-transform: uppercase; }

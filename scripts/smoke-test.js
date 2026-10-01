@@ -68,7 +68,7 @@ sandbox.window = sandbox;
 vm.createContext(sandbox);
 
 // load modules in order
-['storage', 'audio', 'share', 'challenges', 'adaptive', 'engine', 'ui'].forEach(function (name) {
+['storage', 'audio', 'weekly', 'share', 'challenges', 'adaptive', 'engine', 'ui'].forEach(function (name) {
   const code = fs.readFileSync(path.join(__dirname, '..', 'js', name + '.js'), 'utf8');
   vm.runInContext(code, sandbox, { filename: name + '.js' });
 });
@@ -207,10 +207,45 @@ console.log('\nTouch cancellation and repeated rounds');
       assert(W.Engine.getScore() === i + 1, 'round ' + i + ': old button handler removed');
       if (i < 19) advance(170);
     }
+    const rounds = W.Engine.getRounds();
+    assert(rounds.length === 20 && rounds.every(function (t) { return Number.isInteger(t) && t >= 1; }),
+      'engine records one reaction time per cleared round');
   } finally {
     W.Engine.stop();
     W.setTimeout = originalTimeout;
     W.Adaptive.pickNext = originalPick;
+  }
+})();
+
+console.log('\n3b) Weekly mode through the real engine is deterministic');
+(function () {
+  const originalTimeout = W.setTimeout;
+  const timers = [];
+  W.setTimeout = function (fn, delay) { timers.push({ fn, delay }); return timers.length; };
+  function firstRoundLayout(weekId) {
+    timers.length = 0;
+    const field = makeEl('div');
+    W.Engine.init({
+      field, instruction: makeEl('div'), timerFill: makeEl('div'),
+      notifLayer: makeEl('div'), screenGame: makeEl('div'), scoreEl: makeEl('div')
+    });
+    W.Engine.start({ weeklyId: weekId });
+    timers.splice(timers.findIndex(function (t) { return t.delay === 550; }), 1)[0].fn();
+    const b = field.children[field.children.length - 1];
+    const layout = b.style.left + ',' + b.style.top;
+    W.Engine.stop();
+    return layout;
+  }
+  try {
+    assert(firstRoundLayout('2026-W40') === firstRoundLayout('2026-W40'), 'same week => identical first-round layout');
+    const weeks = ['2026-W10', '2026-W20', '2026-W30', '2026-W40', '2026-W50'];
+    const layouts = new Set(weeks.map(firstRoundLayout));
+    assert(layouts.size > 1, 'different weeks => different layouts');
+    const draws = new Set();
+    for (let i = 0; i < 8; i++) draws.add(W.Challenges.rint(1, 1000000000));
+    assert(draws.size > 1, 'seeded generator is released after a weekly run (normal play is random again)');
+  } finally {
+    W.setTimeout = originalTimeout;
   }
 })();
 

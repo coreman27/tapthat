@@ -337,8 +337,12 @@ Candidates: **Emoji Chaos, Math Mode, Rhythm, Memory Tricks, and Gesture Lab**.
 
 **Status:** the client half of Story 4.2 is built: a deterministic weekly challenge
 (seeded per round, adaptive weighting off, separate weekly best, share-link
-head-to-head, covered by `scripts/weekly.test.js`). Not built: the backend, verified
-scores, leaderboards, and friend groups. Links are still not authoritative proof.
+head-to-head, covered by `scripts/weekly.test.js`). Also built and tested but **not
+deployed**: the serverless backend (`server/`), an opt-in client, weekly and friend-group
+leaderboards, plausibility checks that replay the seeded week, and "delete my data".
+Scores are plausibility-checked, not authoritative proof. Still open: deploying (see
+`server/README.md`), moderation beyond the name filter (reporting/blocking), App Privacy
+and age-rating review, and any child-audience decisions before enabling.
 
 ### Story 4.1 - Reliable private rematches
 

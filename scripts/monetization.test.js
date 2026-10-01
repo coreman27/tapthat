@@ -311,6 +311,7 @@ test('UI preserves celebration, passes previous best, and prevents double-tap re
       weeklyBest() { return 0; }, recordWeekly() { return false; },
       theme: 'default', setTheme() {}
     },
+    LeaderboardUI: { init() {}, afterWeeklyRun() {} },
     Themes: {
       LIST: [], enabled: () => false, previewAll: () => false,
       apply: (id) => id || 'default', find: () => null, ownership: () => 'free'

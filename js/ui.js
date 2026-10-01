@@ -6,7 +6,7 @@
   var toastEl, toastTimer;
 
   function register() {
-    ['home', 'challenge', 'game', 'over', 'how', 'store', 'themes'].forEach(function (id) {
+    ['home', 'challenge', 'game', 'over', 'how', 'store', 'themes', 'lb-optin', 'lb'].forEach(function (id) {
       screens[id] = document.getElementById('screen-' + id);
     });
     toastEl = document.getElementById('toast');

@@ -156,6 +156,13 @@
       versus.classList.add('hidden');
     }
 
+    if (weeklyId) {
+      LeaderboardUI.afterWeeklyRun({ weekId: weeklyId, score: score, rounds: payload.rounds || [], name: playerName() });
+    } else {
+      el('over-rank').classList.add('hidden');
+      el('btn-join-lb').classList.add('hidden');
+    }
+
     UI.show('over');
     try {
       pendingBreak = runId ? Monetization.recordLoss({
@@ -361,6 +368,7 @@
     var appliedTheme = Themes.apply(Store.theme);
     if (appliedTheme !== Store.theme) Store.setTheme(appliedTheme);
     el('btn-themes').classList.toggle('hidden', !Themes.enabled());
+    LeaderboardUI.init({ playerName: playerName });
 
     el('playerName').value = Store.name || '';
     refreshBest();

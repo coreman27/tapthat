@@ -114,6 +114,13 @@ resets at the same moment (Monday 00:00 UTC). Fairness rules:
 - The weekly best is stored separately (`Store.weeklyBest`) and resets each week.
   Layout positions scale to the screen size, but the commands and timing match.
 
+Optional online leaderboards and friend groups live in `server/` (Lambda + DynamoDB,
+see `server/README.md`) with an opt-in client in `js/leaderboard.js` and
+`js/leaderboard-ui.js`. The feature is **off** while `LeaderboardConfig.apiBase` in
+`js/leaderboard-config.js` is empty, so nothing is shown or sent until the backend is
+deployed and the URL is set. Enabling it requires updated privacy answers (see the
+server README).
+
 Sharing a weekly score uses the same `#c=` link with an extra `w` field. A friend
 who opens it in the same week plays that sequence and gets a head-to-head result;
 after the week ends the link just says it has ended. Scores are local and shared by
@@ -223,6 +230,6 @@ score-aware timing is implemented; Rewarded Continue is still planned.
 - [ ] Cosmetic theme shop and game personality packs
 - [ ] Game Center / cloud best scores
 - [x] Weekly challenge: seeded sequence, weekly best, share-link head-to-head (no backend)
-- [ ] Weekly leaderboards and friend groups (needs a backend)
+- [x] Weekly leaderboards and friend groups: backend, client and UI built and tested; **not deployed** (needs `terraform apply`, the API URL in config, and updated privacy answers)
 - [ ] Seasonal tournaments & family competitions
 - [ ] Season Pass evaluation after fair weekly events prove retention

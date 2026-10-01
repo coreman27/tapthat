@@ -132,7 +132,31 @@
     return Promise.resolve({ ok: false, url: webUrl, text: text });
   }
 
+  // Generic text share (e.g. a friend-group invite). Native sends friends to the App Store.
+  function shareText(text) {
+    var sharePlugin = getSharePlugin();
+    var url = sharePlugin ? (appStoreUrl() || PUBLIC_BASE) : shareBase();
+    var payload = { title: 'DON\u2019T TAP THAT', text: text, url: url };
+    if (sharePlugin) {
+      return sharePlugin.share(Object.assign({ dialogTitle: 'Invite friends' }, payload))
+        .then(function () { return { ok: true, method: 'native' }; })
+        .catch(function (e) { return isUserCancel(e) ? { ok: true, method: 'native', canceled: true } : { ok: false, text: text }; });
+    }
+    if (navigator.share) {
+      return navigator.share(payload)
+        .then(function () { return { ok: true, method: 'native' }; })
+        .catch(function (e) { return isUserCancel(e) ? { ok: true, method: 'native', canceled: true } : { ok: false, text: text }; });
+    }
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      return navigator.clipboard.writeText(text + '\n' + url)
+        .then(function () { return { ok: true, method: 'clipboard' }; })
+        .catch(function () { return { ok: false, text: text }; });
+    }
+    return Promise.resolve({ ok: false, text: text });
+  }
+
   global.Share = {
+    shareText: shareText,
     encodeChallenge: encodeChallenge,
     decodeChallenge: decodeChallenge,
     buildUrl: buildUrl,

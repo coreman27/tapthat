@@ -54,6 +54,7 @@
         </div>
 
         <button id="btn-how" class="link-btn">How to play</button>
+        <button id="btn-lb" class="link-btn hidden">Weekly leaderboard</button>
         <button id="btn-themes" class="link-btn hidden">Themes</button>
         <button id="btn-store" class="link-btn hidden">Remove ads &amp; purchases</button>
       </div>
@@ -103,12 +104,14 @@
           </div>
         </div>
         <div id="over-mode" class="weekly-line hidden"></div>
+        <p id="over-rank" class="weekly-line hidden" role="status"></p>
         <div id="new-best" class="new-best hidden">NEW BEST!</div>
         <div id="versus" class="versus hidden"></div>
         <p id="ad-break-notice" class="purchase-status hidden" role="status">A short ad may appear when you choose Try Again or Home.</p>
 
         <button id="btn-again" class="big-btn primary">TRY AGAIN</button>
         <button id="btn-share" class="big-btn ghost">CHALLENGE A FRIEND</button>
+        <button id="btn-join-lb" class="link-btn hidden">Join the weekly leaderboard</button>
         <button id="btn-home" class="link-btn">Home</button>
         <button id="btn-over-store" class="link-btn hidden">Remove ads</button>
       </div>
@@ -135,6 +138,41 @@
           <textarea id="ad-diagnostics-report" rows="8" readonly spellcheck="false"></textarea>
         </details>
         <button id="btn-how-back" class="big-btn primary">GOT IT</button>
+      </div>
+    </section>
+
+    <section id="screen-lb-optin" class="screen">
+      <div class="home-inner store-inner">
+        <h2 class="chal-title">Weekly leaderboard</h2>
+        <p class="tagline">Compete with other players on the same weekly commands.</p>
+        <p class="purchase-status" id="lb-privacy-copy">If you join, your display name, your weekly score and a random anonymous ID are sent to our server and shown to other players. No account, no email, no tracking. Delete it all anytime from the leaderboard screen.</p>
+        <button id="btn-lb-join" class="big-btn primary">JOIN</button>
+        <button id="btn-lb-nothanks" class="link-btn">Not now</button>
+        <a class="link-btn" href="privacy.html">Privacy Policy</a>
+      </div>
+    </section>
+
+    <section id="screen-lb" class="screen">
+      <div class="home-inner store-inner">
+        <h2 class="chal-title">Leaderboard</h2>
+        <p id="lb-week" class="weekly-line"></p>
+        <div class="lb-tabs">
+          <button id="lb-tab-global" class="link-btn lb-tab active">Everyone</button>
+          <button id="lb-tab-friends" class="link-btn lb-tab">Friends</button>
+        </div>
+        <ol id="lb-list" class="lb-list"></ol>
+        <p id="lb-status" class="purchase-status" role="status"></p>
+        <div id="lb-friends" class="lb-friends hidden">
+          <p id="lb-group-code" class="weekly-line"></p>
+          <button id="btn-lb-share-code" class="link-btn hidden">Share this group</button>
+          <button id="btn-lb-create" class="big-btn ghost">NEW FRIEND GROUP</button>
+          <div class="name-row">
+            <input id="lb-code-input" type="text" maxlength="9" placeholder="Group code" autocomplete="off" autocapitalize="characters" spellcheck="false" />
+            <button id="btn-lb-joincode" class="link-btn">Join</button>
+          </div>
+        </div>
+        <button id="btn-lb-back" class="big-btn ghost">BACK</button>
+        <button id="btn-lb-delete" class="link-btn">Delete my leaderboard data</button>
       </div>
     </section>
 
@@ -171,6 +209,8 @@
   <script src="js/weekly.js"></script>
   <script src="js/themes.js"></script>
   <script src="js/share.js"></script>
+  <script src="js/leaderboard-config.js"></script>
+  <script src="js/leaderboard.js"></script>
   <script src="js/challenges.js"></script>
   <script src="js/adaptive.js"></script>
   <script src="js/engine.js"></script>
@@ -178,6 +218,7 @@
   <script src="js/ad-config.js"></script>
   <script src="js/ad-policy.js"></script>
   <script src="js/monetization.js"></script>
+  <script src="js/leaderboard-ui.js"></script>
   <script src="js/main.js"></script>
 </body>
 </html>

@@ -5,6 +5,7 @@
   var field, instrEl, timerFill, notifLayer, screenGame, scoreEl;
   var score = 0, lastId = null, running = false;
   var weeklyId = null, round = 0; // weeklyId set => seeded weekly run
+  var rounds = [];                // ms from round start to success, one per cleared round
   var cleanups = [];
   var raf = 0, timerStart = 0, timerLimit = 0, tickedAt = 0;
   var resolved = false;
@@ -81,9 +82,10 @@
       Challenges.setRng(null);
       setTimeout(function () {
         screenGame.classList.remove('flash-bad');
-        onGameOver({ score: score, reason: reason || 'Game over.', category: category, weeklyId: finished });
+        onGameOver({ score: score, reason: reason || 'Game over.', category: category, weeklyId: finished, rounds: rounds.slice() });
       }, 260);
     } else {
+      rounds.push(Math.max(1, Math.round(performance.now() - timerStart)));
       score += 1;
       onUpdate(score);
       scoreEl.classList.remove('score-bump');
@@ -149,6 +151,7 @@
     score = 0;
     lastId = null;
     round = 0;
+    rounds = [];
     weeklyId = (opts && opts.weeklyId) || null;
     Challenges.setRng(null);
     running = true;
@@ -170,6 +173,7 @@
     stop: stop,
     onUpdate: function (fn) { onUpdate = fn; },
     onGameOver: function (fn) { onGameOver = fn; },
-    getScore: function () { return score; }
+    getScore: function () { return score; },
+    getRounds: function () { return rounds.slice(); }
   };
 })(window);

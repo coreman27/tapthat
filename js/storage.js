@@ -25,7 +25,9 @@
       stats: {},
       games: 0,
       // weekly challenge: only the current week is kept; { id, best, plays }
-      weekly: { id: '', best: 0, plays: 0 }
+      weekly: { id: '', best: 0, plays: 0 },
+      // optional online leaderboard (js/leaderboard.js). Nothing is created or sent until optIn.
+      lb: { optIn: false, deviceId: '', deviceKey: '', groups: [], pending: null }
     };
   }
 
@@ -40,6 +42,8 @@
     get name() { return state.name; },
     get muted() { return state.muted; },
     get theme() { return state.theme; },
+    get lb() { return state.lb; },
+    setLb: function (patch) { state.lb = Object.assign({}, state.lb, patch); save(); },
     get games() { return state.games; },
     get stats() { return state.stats; },
 
