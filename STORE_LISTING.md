@@ -64,7 +64,7 @@ purchase product.
 
 Reviewers can open **Remove ads & purchases** on the home screen, purchase
 **Remove Ads**, or choose **Restore Purchases**. A configurable policy selects
-breaks based on completed runs and new-best/near-best milestones with frequency
+breaks based on completed runs and new-best milestones with frequency
 limits. A notice appears on game over; a ready ad is attempted only when choosing
 **Try Again** or **Home**, not over the score celebration. No ad appears mid-round.
 If an ad is unavailable

@@ -133,13 +133,16 @@ test('new best requires an established previous best and wins over cadence', () 
 for (const [score, previousBest, expected] of [[8, 10, 'none'], [9, 10, 'near-best'],
   [10, 10, 'near-best'], [9, 11, 'none'], [10, 11, 'near-best'], [9, 9, 'none']]) {
   test(`near-best threshold score ${score} previous ${previousBest} is ${expected}`, () => {
-    const f = setup({ fast: true });
+    const f = setup({ fast: true, change(config) { config.variants[0].onNearBest = true; } });
     assert.equal(f.end({ score, previousBest }).trigger, expected);
   });
 }
 
 test('high-score and near-best switches work independently', () => {
-  const noNew = setup({ fast: true, change(config) { config.variants[0].onNewBest = false; } });
+  const noNew = setup({ fast: true, change(config) {
+    config.variants[0].onNewBest = false;
+    config.variants[0].onNearBest = true;
+  } });
   assert.equal(noNew.end({ score: 11, previousBest: 10 }).trigger, 'none');
   assert.equal(noNew.end({ score: 9, previousBest: 10 }).trigger, 'near-best');
   const noNear = setup({ fast: true, change(config) { config.variants[0].onNearBest = false; } });
@@ -193,8 +196,15 @@ test('selected score opportunities are spaced without rejected milestones moving
   assert.equal(f.end({ score: 14, previousBest: 13 }).eligible, true);
 });
 
+test('shipped config keeps near-best off so frustrated players are not interrupted', () => {
+  const f = setup({ fast: true });
+  assert.equal(f.config.variants[0].onNearBest, false);
+  assert.equal(f.end({ score: 9, previousBest: 10 }).trigger, 'none');
+  assert.equal(f.end({ score: 11, previousBest: 10 }).trigger, 'new-best');
+});
+
 test('consecutive near-best runs still produce fresh opportunities after grace and spacing', () => {
-  const f = setup();
+  const f = setup({ change(config) { config.variants[0].onNearBest = true; } });
   const selected = [];
   for (let run = 1; run <= 10; run++) {
     f.advance(100000);

@@ -14,8 +14,10 @@ At the end of a run, choose at most one trigger, in this order:
 
 1. **New best:** the score beats the previous best, and that previous best was
    at least 10.
-2. **Near best:** the score is at least `ceil(previousBest * 0.9)` but does not
-   exceed the previous best, which must be at least 10. Ties count.
+2. **Near best (off by default):** the score is at least `ceil(previousBest * 0.9)`
+   but does not exceed the previous best, which must be at least 10. Ties count.
+   Disabled in the shipped config because it fires right after a near miss, when
+   players are most likely to quit; enable `onNearBest` to compare it deliberately.
 3. **Cadence:** every fifth completed run in the session (5, 10, 15, ...).
    Milestone opportunities do not shift this schedule.
 
@@ -70,7 +72,7 @@ Edit [`js/ad-config.js`](js/ad-config.js), not the generated `www/` copy.
 | `enabled` | `true` | Boolean; disables presentation for this variant when false |
 | `everyRuns` | `5` | Integer 4-6; session cadence |
 | `onNewBest` | `true` | Boolean; enable new-best trigger |
-| `onNearBest` | `true` | Boolean; enable near-best trigger |
+| `onNearBest` | `false` | Boolean; enable near-best trigger |
 | `nearBestRatio` | `0.9` | Finite number 0-1; fraction of the previous best |
 | `minBest` | `10` | Integer 1-1,000,000; minimum established best for score triggers |
 | `minRunsBetween` | `3` | Integer 2-100; minimum run spacing |

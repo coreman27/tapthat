@@ -1,14 +1,14 @@
 (function (global) {
   'use strict';
 
-  function variant(id, weight, scoreMoments, enabled) {
+  function variant(id, weight, scoreMoments, enabled, nearBest) {
     return Object.freeze({
       id: id,
       weight: weight,
       enabled: enabled,
       everyRuns: 5,
       onNewBest: scoreMoments,
-      onNearBest: scoreMoments,
+      onNearBest: nearBest,
       nearBestRatio: 0.9,
       minBest: 10,
       minRunsBetween: 3,
@@ -27,9 +27,10 @@
   global.AdConfig = Object.freeze({
     version: 'score-timing-v1',
     variants: Object.freeze([
-      variant('contextual', 100, true, true),
-      variant('cadence-5', 0, false, true),
-      variant('holdout', 0, false, false)
+      // Near-best is off: it fires right after a near miss, when players are most likely to quit.
+      variant('contextual', 100, true, true, false),
+      variant('cadence-5', 0, false, true, false),
+      variant('holdout', 0, false, false, false)
     ])
   });
 })(window);

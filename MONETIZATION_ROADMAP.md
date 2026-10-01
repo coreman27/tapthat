@@ -233,8 +233,9 @@ offers do not measurably damage replay or retention under the agreed guardrails.
 
 - [x] Replace the fixed three-loss cadence with a versioned, testable local policy.
 - [x] Add configurable new-best and near-best score opportunities. Compare against
-  the previous best before saving the current result. Default near-best is 90%
-  of a previous best of at least 10; the first-ever best is not a milestone trigger.
+  the previous best before saving the current result. Near-best (90% of a previous
+  best of at least 10) is implemented but **off by default**: it fires after a near
+  miss, when players are most likely to quit. The first-ever best is not a trigger.
 - [x] Preserve the high-score celebration and sharing: select and announce an
   opportunity at game over, but attempt it only on **Try Again** or **Home**.
 - [x] Add first-session grace, minimum session time, run spacing, persistent
