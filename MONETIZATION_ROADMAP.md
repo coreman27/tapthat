@@ -268,10 +268,10 @@ the most impressions. Keep a rollback path to the least disruptive policy.
 
 ### Story 1.3 - Launch and explain $4.99 Remove Ads
 
-- [ ] Use localized StoreKit pricing, a one-time purchase, and Restore Purchases.
-- [ ] Explain exactly what ownership includes: no interstitials and, after Story
+- [x] Use localized StoreKit pricing, a one-time purchase, and Restore Purchases.
+- [x] Explain exactly what ownership includes: no interstitials and, after Story
   1.1 ships, the ad-free equivalent of its single casual continue.
-- [ ] Preserve the entitlement for earlier buyers regardless of what they paid.
+- [x] Preserve the entitlement for earlier buyers regardless of what they paid.
   Changing the price is not a reason to create a new product or charge them again.
 - [ ] Align purchase copy, review notes, screenshots, and production price.
 - [ ] Validate the complete offer on real sandbox/TestFlight builds before release.

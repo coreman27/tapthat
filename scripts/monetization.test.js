@@ -113,6 +113,8 @@ test('purchase screen stays focused on removing ads; diagnostics live under how 
   const how = html.match(/<section id="screen-how"[\s\S]*?<\/section>/)[0];
   assert.ok(store.includes('<h2 class="chal-title">Remove Ads</h2>'));
   assert.ok(store.includes('One-time purchase. No subscription.'));
+  assert.ok(store.includes('Removes all ads, for good.'), 'states exactly what ownership includes');
+  assert.ok(store.includes('Restores free on any device'), 'explains restore');
   assert.doesNotMatch(store, /score milestones|between runs|ad-diagnostics/);
   for (const id of ['btn-remove-ads', 'btn-restore', 'btn-privacy-options', 'btn-store-retry', 'purchase-status']) {
     assert.ok(store.includes(`id="${id}"`), id);
