@@ -53,12 +53,12 @@
     timerStart = performance.now();
     tickedAt = 0;
     timerFill.style.transform = 'scaleX(1)';
-    timerFill.style.background = 'linear-gradient(90deg, var(--green), var(--yellow))';
+    timerFill.style.background = 'var(--green)';
     function frame() {
       var elapsed = performance.now() - timerStart;
       var remain = Math.max(0, 1 - elapsed / limit);
       timerFill.style.transform = 'scaleX(' + remain + ')';
-      if (remain < 0.35) timerFill.style.background = 'linear-gradient(90deg, var(--danger), var(--yellow))';
+      if (remain < 0.35) timerFill.style.background = 'var(--danger)';
       // tick in final second
       if (remain < 0.5 && performance.now() - tickedAt > 200) { tickedAt = performance.now(); Sound.tick(); }
       if (elapsed >= limit) { onExpire(); return; }

@@ -1,10 +1,17 @@
+/* DON'T TAP THAT — styles.
+ * Visual system: a quiet dark base, one solid accent, and translucent "glass" surfaces
+ * (blurred, hairline-bordered, neutral shadow) like iOS system materials. No gradients on
+ * controls, no colored glows. Themes (bottom of file) only swap tokens.
+ */
 :root {
-  --bg: #0b0b12;
-  --bg2: #14141f;
-  --fg: #f4f4fb;
-  --muted: #9a9ab0;
-  --accent: #4f8cff;
-  --accent2: #7c5cff;
+  --bg: #0a0b0f;
+  --bg2: #12141a;
+  --fg: #f5f6f8;
+  --muted: #9aa0ad;
+  --accent: #0b6ff0;       /* solid fill for primary controls */
+  --on-accent: #ffffff;    /* text/icons on --accent (>= 4.5:1, tested) */
+  --link: #5aa9ff;         /* accent as text on the dark background */
+  --accent2: #5ac8fa;
   --danger: #ff3b46;
   --green: #22c55e;
   --blue: #3b82f6;
@@ -13,11 +20,19 @@
   --purple: #a855f7;
   /* Theme surface tokens (see js/themes.js). The five gameplay colors above must
      never be overridden by a theme: commands like "TAP RED" depend on them. */
-  --bg-glow: #1c1c2e;
-  --line: #2a2a3d;
-  --line2: #2f2f45;
-  --panel: #1d1d2b;
-  --panel2: #23233a;
+  --bg-glow: rgba(52, 112, 255, 0.34);   /* soft light behind the glass, upper left */
+  --blob2: rgba(36, 170, 190, 0.22);     /* second light, lower right */
+  --line: #242831;
+  --line2: #303541;
+  --panel: #14161c;                      /* solid fallback for glass */
+  --panel2: #1b1e26;
+  --glass: rgba(255, 255, 255, 0.09);
+  --glass-strong: rgba(255, 255, 255, 0.13);
+  --glass-border: rgba(255, 255, 255, 0.13);
+  --glass-hi: rgba(255, 255, 255, 0.15);
+  --glass-blur: blur(24px) saturate(170%);
+  --sep: rgba(255, 255, 255, 0.09);
+  --shadow: 0 10px 30px rgba(0, 0, 0, 0.38);
   --title-glow: none;
   --font: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", Roboto, system-ui, sans-serif;
   --safe-t: env(safe-area-inset-top, 0px);
@@ -35,16 +50,48 @@ html, body {
   background: var(--bg);
   color: var(--fg);
   font-family: var(--font);
+  -webkit-font-smoothing: antialiased;
   -webkit-user-select: none;
   user-select: none;
   touch-action: manipulation;
   overscroll-behavior: none;
 }
 
+/* Two soft lights give the glass something to blur, like a system wallpaper. */
 #app {
   position: fixed;
   inset: 0;
-  background: radial-gradient(120% 90% at 50% -10%, var(--bg-glow) 0%, var(--bg) 60%);
+  background:
+    radial-gradient(70% 40% at 6% 24%, var(--bg-glow) 0%, transparent 70%),
+    radial-gradient(70% 40% at 96% 76%, var(--blob2) 0%, transparent 70%),
+    var(--bg);
+}
+
+:focus-visible { outline: 2px solid var(--link); outline-offset: 2px; }
+
+/* ---------- Glass surfaces ----------
+   One material, reused: translucent fill, backdrop blur, hairline border, a faint top
+   highlight and a neutral shadow. Fallbacks for no-blur devices are at the end. */
+.glass,
+.big-btn.ghost,
+.name-row,
+.card-btn,
+.glass-list,
+.instruction,
+.score-block,
+.new-best,
+.versus,
+.challenge-badge,
+.how-list,
+.theme-card,
+.lb-tabs,
+.lb-list li,
+.toast {
+  background: var(--glass);
+  -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--glass-border);
+  box-shadow: inset 0 1px 0 var(--glass-hi), var(--shadow);
 }
 
 /* ---------- Screens ---------- */
@@ -56,132 +103,187 @@ html, body {
   padding: calc(var(--safe-t) + 16px) 20px calc(var(--safe-b) + 16px);
 }
 .screen.active { display: flex; }
-#screen-home, #screen-over, #screen-how, #screen-store { overflow-y: auto; }
+#screen-home, #screen-over, #screen-how, #screen-store, #screen-themes, #screen-lb, #screen-lb-optin { overflow-y: auto; }
 
 .home-inner {
   margin: auto;
   width: 100%;
-  max-width: 460px;
+  max-width: 420px;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 18px;
+  gap: 14px;
   text-align: center;
 }
 
 .logo {
-  font-size: clamp(42px, 13vw, 74px);
-  line-height: 0.92;
-  font-weight: 900;
-  letter-spacing: -0.03em;
+  font-size: clamp(44px, 14vw, 62px);
+  line-height: 0.98;
+  font-weight: 800;
+  letter-spacing: -0.04em;
   margin: 0;
   text-shadow: var(--title-glow);
 }
-.logo-accent {
-  background: linear-gradient(90deg, var(--accent), var(--accent2));
-  -webkit-background-clip: text;
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
-}
-.tagline { color: var(--muted); font-size: 16px; margin: 0; max-width: 34ch; }
+.logo-accent { display: block; color: var(--link); }
+.tagline { color: var(--muted); font-size: 16px; line-height: 1.35; margin: 0; max-width: 32ch; }
 
+/* ---------- Inputs ---------- */
 .name-row {
   display: flex;
   align-items: center;
   gap: 10px;
   width: 100%;
-  max-width: 320px;
-  justify-content: center;
+  max-width: 360px;
+  padding: 0 14px;
+  height: 50px;
+  border-radius: 14px;
 }
-.name-row label { color: var(--muted); font-size: 15px; }
+.name-row label { color: var(--muted); font-size: 16px; white-space: nowrap; }
 #playerName, #lb-code-input {
   flex: 1;
-  background: var(--bg2);
-  border: 1px solid var(--line);
+  min-width: 0;
+  height: 100%;
+  background: none;
+  border: none;
   color: var(--fg);
-  border-radius: 12px;
-  padding: 12px 14px;
   font-size: 17px;
-  text-align: center;
+  text-align: right;
   outline: none;
 }
-#playerName:focus, #lb-code-input:focus { border-color: var(--accent); }
+#lb-code-input { text-align: left; }
+#playerName::placeholder, #lb-code-input::placeholder { color: var(--muted); opacity: 0.7; }
 
 /* ---------- Buttons ---------- */
 .big-btn {
   width: 100%;
-  max-width: 340px;
+  max-width: 360px;
+  min-height: 54px;
   border: none;
-  border-radius: 18px;
-  padding: 20px;
-  font-size: 22px;
-  font-weight: 800;
-  letter-spacing: 0.02em;
-  color: #fff;
+  border-radius: 16px;
+  padding: 15px 20px;
+  font-size: 17px;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+  color: var(--fg);
   cursor: pointer;
-  transition: transform 0.06s ease, filter 0.15s ease;
+  transition: transform 0.08s ease, filter 0.15s ease;
 }
-.big-btn:active { transform: scale(0.97); }
-.big-btn.primary { background: linear-gradient(90deg, var(--accent), var(--accent2)); box-shadow: 0 10px 30px -10px var(--accent); }
-.big-btn.ghost { background: transparent; border: 2px solid var(--line2); color: var(--fg); }
+.big-btn:active { transform: scale(0.985); }
+.big-btn.primary {
+  background: var(--accent);
+  color: var(--on-accent);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.22), 0 1px 2px rgba(0, 0, 0, 0.35);
+}
+.big-btn.primary:active { filter: brightness(0.92); }
+.big-btn.ghost { border-width: 1px; }
+.big-btn small { display: block; margin-top: 3px; font-size: 13px; font-weight: 500; letter-spacing: 0; opacity: 0.75; }
+
 .link-btn {
-  background: none; border: none; color: var(--muted);
-  font-size: 15px; text-decoration: underline; cursor: pointer; padding: 6px;
+  background: none; border: none; color: var(--link);
+  font-size: 16px; font-weight: 500; padding: 8px; cursor: pointer;
 }
-button:disabled { opacity: 0.55; cursor: default; }
-button:disabled:active { transform: none; }
-.store-inner { gap: 14px; }
-.purchase-status { margin: 0; color: var(--muted); font-size: 14px; }
-.ad-diagnostics { width: 100%; text-align: left; color: var(--muted); font-size: 13px; }
+.link-btn:active { opacity: 0.6; }
+a.link-btn { text-decoration: none; }
+button:disabled { opacity: 0.45; cursor: default; }
+button:disabled:active { transform: none; filter: none; opacity: 0.45; }
+
+/* Tappable summary card (weekly challenge) and grouped navigation list, as in iOS Settings */
+.card-btn {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  max-width: 360px;
+  padding: 14px 16px;
+  border-radius: 18px;
+  text-align: left;
+  color: var(--fg);
+  font: inherit;
+  cursor: pointer;
+}
+.card-btn:active, .row:active { background: var(--glass-strong); }
+.cb-main { flex: 1; min-width: 0; }
+.cb-main strong { display: block; font-size: 17px; font-weight: 650; letter-spacing: -0.01em; }
+.cb-main .weekly-line { margin-top: 2px; }
+
+.glass-list { width: 100%; max-width: 360px; border-radius: 18px; overflow: hidden; }
+/* the last visible row's separator is clipped by the container, whichever row that is */
+.gl-inner { margin-bottom: -1px; }
+.row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 14px 16px;
+  background: none;
+  border: none;
+  border-bottom: 1px solid var(--sep);
+  color: var(--fg);
+  font-size: 17px;
+  text-align: left;
+  cursor: pointer;
+}
+.chev { flex: none; margin-left: auto; width: 8px; height: 8px; border-right: 2px solid var(--muted); border-top: 2px solid var(--muted); transform: rotate(45deg); opacity: 0.7; }
+
+.store-inner { gap: 12px; }
+.purchase-status { margin: 0; color: var(--muted); font-size: 14px; line-height: 1.4; max-width: 36ch; }
+.ad-diagnostics { width: 100%; max-width: 360px; text-align: left; color: var(--muted); font-size: 13px; }
 .ad-diagnostics summary { cursor: pointer; padding: 8px 0; }
 .ad-diagnostics label { display: block; margin: 8px 0; }
 .ad-diagnostics textarea {
   width: 100%; color: var(--fg); background: var(--bg2);
-  border: 1px solid var(--muted); border-radius: 8px; padding: 8px;
+  border: 1px solid var(--line2); border-radius: 10px; padding: 8px;
   user-select: text; -webkit-user-select: text; font-size: 12px;
 }
 
-.weekly-line { margin: 0; color: var(--muted); font-size: 14px; letter-spacing: 0.02em; }
+.weekly-line { margin: 0; color: var(--muted); font-size: 13px; }
 .weekly-line:empty { display: none; }
-.best-line { display: flex; gap: 10px; align-items: baseline; color: var(--muted); }
-.best-line strong { color: var(--fg); font-size: 22px; }
+.best-line { display: flex; gap: 8px; align-items: baseline; color: var(--muted); font-size: 15px; }
+.best-line strong { color: var(--fg); font-size: 17px; font-weight: 650; }
 
 /* ---------- HUD ---------- */
 .hud {
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  align-items: flex-end;
+  padding: 0 4px;
   font-variant-numeric: tabular-nums;
 }
-.hud-label { display: block; font-size: 11px; letter-spacing: 0.14em; color: var(--muted); }
-.hud-score span:last-child, .hud-best span:last-child { font-size: 30px; font-weight: 900; }
-.hud-best { text-align: right; opacity: 0.8; }
+.hud-label { display: block; font-size: 11px; font-weight: 600; letter-spacing: 0.08em; color: var(--muted); }
+.hud-score span:last-child, .hud-best span:last-child { font-size: 34px; font-weight: 700; letter-spacing: -0.02em; }
+.hud-best { text-align: right; opacity: 0.75; }
 
 #timerbar {
-  height: 8px;
-  background: #22223300;
+  height: 6px;
+  background: rgba(255, 255, 255, 0.10);
   border-radius: 99px;
-  margin: 12px 0 4px;
+  margin: 10px 0 10px;
   overflow: hidden;
-  background: var(--panel);
 }
 #timerbar-fill {
   height: 100%;
   width: 100%;
   border-radius: 99px;
-  background: linear-gradient(90deg, var(--green), var(--yellow));
+  background: var(--green);
   transform-origin: left center;
+  transition: background 0.2s ease;
 }
 
 .instruction {
+  display: block;
+  width: fit-content;
+  max-width: 100%;
+  margin: 2px auto 0;
+  padding: 10px 20px;
   text-align: center;
-  font-size: clamp(24px, 7vw, 38px);
-  font-weight: 900;
-  letter-spacing: -0.01em;
+  font-size: clamp(22px, 6.4vw, 30px);
+  font-weight: 750;
+  letter-spacing: -0.015em;
   min-height: 1.4em;
-  padding: 8px 0 4px;
+  border-radius: 16px;
   transition: color 0.1s ease;
 }
+.instruction:empty { visibility: hidden; }
 .instruction.warn { color: var(--danger); }
 
 /* ---------- Playfield ---------- */
@@ -194,47 +296,53 @@ button:disabled:active { transform: none; }
 .playfield {
   position: relative;
   flex: 1;
-  margin-top: 8px;
-  border-radius: 20px;
+  margin-top: 12px;
+  border-radius: 22px;
   overflow: hidden;
+  background: rgba(255, 255, 255, 0.025);
+  border: 1px solid var(--sep);
   transition: transform 0.5s cubic-bezier(.2,.8,.2,1);
 }
 .playfield.rotate-90 { transform: rotate(90deg) scale(0.72); }
 .playfield.rotate-180 { transform: rotate(180deg); }
 .playfield.rotate-270 { transform: rotate(270deg) scale(0.72); }
 
+/* Game buttons: solid, high-contrast, with a hairline so even dark ones stay visible. The
+   five colors are gameplay semantics and never change; "neutral" is a distinct light button
+   (not blue) so "TAP BLUE" can never be confused with a plain command. */
 .gbtn {
   position: absolute;
   display: flex;
   align-items: center;
   justify-content: center;
   text-align: center;
-  border: none;
-  border-radius: 18px;
-  font-weight: 800;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 16px;
+  font-weight: 700;
   color: #fff;
   padding: 0 10px;
   line-height: 1.05;
-  box-shadow: 0 8px 22px -12px rgba(0,0,0,0.9);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.26), 0 6px 14px rgba(0, 0, 0, 0.38);
   transition: transform 0.05s ease;
   will-change: transform, left, top;
 }
-.gbtn:active { transform: scale(0.95); }
+.gbtn:active { transform: scale(0.96); }
 .gbtn.blue { background: var(--blue); }
 .gbtn.red { background: var(--red); }
 .gbtn.green { background: var(--green); }
 .gbtn.yellow { background: var(--yellow); color: #1a1a1a; }
 .gbtn.purple { background: var(--purple); }
-.gbtn.neutral { background: linear-gradient(135deg, var(--accent), var(--accent2)); }
+.gbtn.neutral { background: #eceff4; color: #0b0d12; border-color: rgba(0, 0, 0, 0.12); }
 
 .hold-gauge {
   position: absolute;
   left: 0; bottom: 0;
   height: 6px;
   width: 0%;
-  background: rgba(255,255,255,0.85);
-  border-radius: 0 0 18px 18px;
+  background: rgba(255, 255, 255, 0.85);
+  border-radius: 0 0 16px 16px;
 }
+.gbtn.neutral .hold-gauge { background: rgba(11, 13, 18, 0.45); }
 
 /* ---------- Notification (fake iOS) ---------- */
 .notif-layer { position: absolute; inset: 0; pointer-events: none; }
@@ -262,47 +370,41 @@ button:disabled:active { transform: none; }
 .fake-notif .tm { margin-left: auto; font-size: 12px; color: #b9b9c8; }
 
 /* ---------- Game over ---------- */
-.over-reason { font-size: 22px; font-weight: 800; color: var(--danger); }
-.score-block { display: flex; gap: 34px; }
-.score-final strong, .score-best strong { font-size: 56px; font-weight: 900; display: block; }
-.score-best { opacity: 0.7; }
-.new-best { color: var(--yellow); font-weight: 900; font-size: 20px; letter-spacing: 0.08em; animation: pop 0.4s ease; }
+.over-reason { font-size: 17px; font-weight: 650; color: var(--danger); }
+.score-block { display: flex; width: 100%; max-width: 360px; padding: 18px 8px; border-radius: 20px; }
+.score-final, .score-best { flex: 1; text-align: center; }
+.score-best { border-left: 1px solid var(--sep); }
+.score-final strong, .score-best strong { display: block; margin-top: 2px; font-size: 48px; font-weight: 750; letter-spacing: -0.03em; font-variant-numeric: tabular-nums; }
+.score-best strong { color: var(--muted); }
+.new-best { padding: 6px 14px; border-radius: 99px; color: var(--yellow); font-weight: 700; font-size: 14px; letter-spacing: 0.06em; animation: pop 0.4s ease; }
 @keyframes pop { 0% { transform: scale(0.6); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
 .versus {
-  background: var(--bg2);
-  border: 1px solid var(--line);
-  border-radius: 14px;
+  border-radius: 16px;
   padding: 12px 16px;
   font-size: 16px;
   line-height: 1.5;
   width: 100%;
-  max-width: 340px;
+  max-width: 360px;
 }
-.versus .win { color: var(--green); font-weight: 800; }
-.versus .lose { color: var(--danger); font-weight: 800; }
+.versus .win { color: var(--green); font-weight: 700; }
+.versus .lose { color: var(--danger); font-weight: 700; }
 
-.challenge-badge {
-  background: linear-gradient(90deg, var(--accent), var(--accent2));
-  padding: 6px 16px; border-radius: 99px; font-weight: 800; letter-spacing: 0.14em; font-size: 13px;
-}
-.chal-title { font-size: 26px; font-weight: 900; margin: 0; }
+.challenge-badge { padding: 6px 14px; border-radius: 99px; color: var(--link); font-weight: 700; letter-spacing: 0.1em; font-size: 12px; text-transform: uppercase; }
+.chal-title { font-size: 26px; font-weight: 750; letter-spacing: -0.02em; margin: 0; }
 
-.how-inner { align-items: flex-start; text-align: left; }
-.how-inner .chal-title, .how-inner .tagline { align-self: center; }
-.how-list { color: var(--fg); font-size: 16px; line-height: 1.6; padding-left: 20px; }
-.how-list b { color: var(--accent); }
+.how-inner { align-items: center; text-align: left; }
+.how-list { width: 100%; max-width: 360px; margin: 0; padding: 16px 20px 16px 38px; border-radius: 18px; color: var(--fg); font-size: 16px; line-height: 1.55; }
+.how-list b { color: var(--link); font-weight: 650; }
 
 /* ---------- Toast ---------- */
 .toast {
   position: absolute;
   left: 50%; bottom: calc(var(--safe-b) + 24px);
   transform: translateX(-50%);
-  background: var(--panel2);
-  color: #fff;
+  color: var(--fg);
   padding: 12px 18px;
-  border-radius: 12px;
+  border-radius: 14px;
   font-size: 15px;
-  box-shadow: 0 10px 30px -8px rgba(0,0,0,0.7);
   z-index: 50;
   max-width: 88vw;
   text-align: center;
@@ -319,88 +421,104 @@ button:disabled:active { transform: none; }
 .score-bump { animation: bump 0.18s ease; }
 @keyframes bump { 0% { transform: scale(1); } 50% { transform: scale(1.35); } 100% { transform: scale(1); } }
 
+/* ---------- Theme picker ---------- */
+.theme-list { width: 100%; max-width: 360px; display: flex; flex-direction: column; gap: 10px; }
+.theme-card {
+  display: flex; align-items: center; gap: 12px; width: 100%; text-align: left;
+  color: var(--fg); border-radius: 16px; padding: 12px 14px; font: inherit; cursor: pointer;
+}
+.theme-card.selected { border-color: var(--link); box-shadow: inset 0 0 0 1px var(--link), var(--shadow); }
+.theme-card .swatch { display: flex; flex: none; border-radius: 9px; overflow: hidden; border: 1px solid var(--glass-border); }
+.theme-card .swatch i { width: 16px; height: 34px; display: block; }
+.theme-card .meta { flex: 1; min-width: 0; }
+.theme-card .meta strong { display: block; font-size: 17px; font-weight: 650; }
+.theme-card .meta span { display: block; font-size: 13px; color: var(--muted); }
+.theme-card .tag { flex: none; font-size: 12px; font-weight: 700; letter-spacing: 0.04em; color: var(--link); }
+.theme-buy { width: 100%; max-width: 360px; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+
+/* ---------- Leaderboard ---------- */
+.lb-tabs { display: flex; gap: 2px; padding: 3px; border-radius: 12px; }
+.lb-tab { text-decoration: none; padding: 7px 18px; border-radius: 9px; color: var(--muted); font-weight: 600; }
+.lb-tab.active { color: var(--fg); background: var(--glass-strong); }
+.lb-list { list-style: none; margin: 0; padding: 0; width: 100%; max-width: 360px; display: flex; flex-direction: column; gap: 6px; }
+.lb-list li { display: flex; gap: 10px; align-items: baseline; padding: 10px 14px; border-radius: 14px; font-variant-numeric: tabular-nums; box-shadow: inset 0 1px 0 var(--glass-hi); }
+.lb-list li.me { border-color: var(--link); }
+.lb-list .rk { width: 2.2em; color: var(--muted); }
+.lb-list .nm { flex: 1; min-width: 0; text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lb-list .sc { font-weight: 700; }
+.lb-friends { width: 100%; max-width: 360px; display: flex; flex-direction: column; gap: 10px; align-items: center; }
+
+/* ---------- Fallbacks ---------- */
+/* No blur available, or the user chose Reduce Transparency: use solid panels. */
+@supports not ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))) {
+  :root { --glass: #1b1e26; --glass-strong: #272b35; --glass-blur: none; }
+}
+@media (prefers-reduced-transparency: reduce) {
+  :root { --glass: #1b1e26; --glass-strong: #272b35; --glass-blur: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .score-bump, .new-best, .fake-notif, #screen-game.flash-bad, #screen-game.flash-good { animation: none; }
+  .playfield { transition: none; }
+}
+
 /* ---------- Themes (presentation only) ----------
    A theme may change the backdrop, text, panels, accent colors and font.
    It must NOT change hitboxes, timing, or the gameplay colors (--red, --green,
-   --blue, --yellow, --purple), so commands stay readable in every theme. */
+   --blue, --yellow, --purple), so commands stay readable in every theme.
+   --accent is a fill (needs --on-accent text at 4.5:1); --link is the accent as text. */
 :root[data-theme="arcade"] {
-  --bg: #0a0014;
-  --bg2: #170029;
-  --fg: #fdf4ff;
-  --muted: #b99ad8;
-  --accent: #ff2bd6;
+  --bg: #0b0612;
+  --bg2: #150b22;
+  --fg: #fbf5ff;
+  --muted: #b9a3cf;
+  --accent: #c4179f;
+  --on-accent: #ffffff;
+  --link: #ff7ad9;
   --accent2: #00e5ff;
-  --bg-glow: #3a0a5c;
-  --line: #5b1d8f;
-  --line2: #7a2bb8;
-  --panel: #1f0836;
-  --panel2: #2c0f4d;
-  --title-glow: 0 0 18px rgba(255, 43, 214, 0.55);
+  --bg-glow: rgba(196, 23, 159, 0.34);
+  --blob2: rgba(0, 200, 230, 0.20);
+  --line: #3a1d57;
+  --line2: #54297c;
+  --panel: #1a1024;
+  --panel2: #251536;
+  --title-glow: 0 0 22px rgba(255, 90, 215, 0.35);
   --font: "Avenir Next Condensed", "Arial Narrow", Impact, system-ui, sans-serif;
 }
 :root[data-theme="terminal"] {
-  --bg: #020a04;
+  --bg: #030a05;
   --bg2: #06140a;
-  --fg: #c4ffd2;
-  --muted: #55b872;
-  --accent: #33ff66;
+  --fg: #c8ffd8;
+  --muted: #5fbf7c;
+  --accent: #22d95f;
+  --on-accent: #03120a;
+  --link: #52ff8a;
   --accent2: #00d68f;
-  --bg-glow: #05260f;
+  --bg-glow: rgba(34, 217, 95, 0.22);
+  --blob2: rgba(0, 214, 143, 0.14);
   --line: #11421f;
   --line2: #1a6130;
-  --panel: #07180c;
+  --panel: #081a0e;
   --panel2: #0c2614;
-  --title-glow: 0 0 14px rgba(51, 255, 102, 0.45);
+  --title-glow: 0 0 16px rgba(82, 255, 138, 0.30);
   --font: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
 }
 :root[data-theme="space"] {
-  --bg: #050b1a;
+  --bg: #060b17;
   --bg2: #0b1730;
   --fg: #eaf4ff;
   --muted: #8fa8c8;
   --accent: #38bdf8;
+  --on-accent: #04101c;
+  --link: #7dd3fc;
   --accent2: #818cf8;
-  --bg-glow: #12305c;
+  --bg-glow: rgba(56, 130, 248, 0.34);
+  --blob2: rgba(129, 140, 248, 0.22);
   --line: #1e3a66;
   --line2: #2b5088;
-  --panel: #0c1a33;
+  --panel: #0d1830;
   --panel2: #12254a;
-  --title-glow: 0 0 16px rgba(56, 189, 248, 0.4);
+  --title-glow: none;
   --font: "Avenir Next", "Helvetica Neue", system-ui, sans-serif;
 }
-/* Terminal text-buttons keep monospace alignment */
-:root[data-theme="terminal"] .big-btn { letter-spacing: 0.04em; }
-:root[data-theme="arcade"] .big-btn, :root[data-theme="arcade"] .chal-title { letter-spacing: 0.06em; text-transform: uppercase; }
-
-/* ---------- Theme picker ---------- */
-.theme-list { width: 100%; max-width: 340px; display: flex; flex-direction: column; gap: 10px; }
-.theme-card {
-  display: flex; align-items: center; gap: 12px; width: 100%; text-align: left;
-  background: var(--panel); color: var(--fg); border: 2px solid var(--line);
-  border-radius: 16px; padding: 12px 14px; font: inherit; cursor: pointer;
-}
-.theme-card.selected { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent) inset; }
-.theme-card .swatch { display: flex; flex: none; }
-.theme-card .swatch i { width: 18px; height: 34px; display: block; }
-.theme-card .swatch i:first-child { border-radius: 8px 0 0 8px; }
-.theme-card .swatch i:last-child { border-radius: 0 8px 8px 0; }
-.theme-card .meta { flex: 1; min-width: 0; }
-.theme-card .meta strong { display: block; font-size: 17px; }
-.theme-card .meta span { display: block; font-size: 13px; color: var(--muted); }
-.theme-card .tag { flex: none; font-size: 12px; font-weight: 800; letter-spacing: 0.06em; color: var(--accent); }
-
-/* ---------- Leaderboard ---------- */
-.lb-tabs { display: flex; gap: 6px; }
-.lb-tab { text-decoration: none; padding: 8px 16px; border-radius: 99px; border: 1px solid var(--line); }
-.lb-tab.active { color: var(--fg); border-color: var(--accent); }
-.lb-list { list-style: none; margin: 0; padding: 0; width: 100%; max-width: 340px; display: flex; flex-direction: column; gap: 6px; }
-.lb-list li { display: flex; gap: 10px; align-items: baseline; padding: 8px 12px; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; font-variant-numeric: tabular-nums; }
-.lb-list li.me { border-color: var(--accent); }
-.lb-list .rk { width: 2.2em; color: var(--muted); }
-.lb-list .nm { flex: 1; text-align: left; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.lb-list .sc { font-weight: 800; }
-.lb-friends { width: 100%; max-width: 340px; display: flex; flex-direction: column; gap: 10px; align-items: center; }
-.lb-friends .name-row input { text-transform: uppercase; }
-
-/* Rewarded Continue: a clearly optional second choice under the free TRY AGAIN */
-.big-btn small { display: block; margin-top: 4px; font-size: 13px; font-weight: 600; letter-spacing: 0.02em; opacity: 0.8; text-transform: none; }
+:root[data-theme="terminal"] .big-btn { letter-spacing: 0.02em; }
+:root[data-theme="arcade"] .big-btn, :root[data-theme="arcade"] .chal-title { letter-spacing: 0.04em; text-transform: uppercase; }

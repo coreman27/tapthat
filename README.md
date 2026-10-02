@@ -126,6 +126,24 @@ who opens it in the same week plays that sequence and gets a head-to-head result
 after the week ends the link just says it has ended. Scores are local and shared by
 link only, so they are not verified. Shared leaderboards need a backend (roadmap Phase 4).
 
+### Design system
+
+The UI follows iOS-style materials rather than decorative effects (`css/styles.css`):
+
+- **Glass:** one shared material (`--glass`, `--glass-blur`, hairline border, faint top
+  highlight, neutral shadow) used by cards, the grouped list, inputs, the command pill,
+  toasts and secondary buttons. Two soft lights in `#app` give it something to blur.
+- **One solid accent** (`--accent` fill with `--on-accent` text, `--link` for accent text).
+  No gradients on controls and no colored glows; `scripts/themes.test.js` fails if either
+  comes back.
+- **Structure:** a primary action, a tappable summary card (weekly challenge), and a grouped
+  list with chevrons for navigation; sentence-case buttons; no underlined web-style links.
+  Game commands stay uppercase because they are the game's voice.
+- **Game buttons** are solid for legibility. The five gameplay colors never change; the plain
+  ("neutral") button is a distinct light button so it can never be mistaken for blue.
+- **Fallbacks:** solid panels under *Reduce Transparency* or without `backdrop-filter`, and
+  animations off under *Reduce Motion*.
+
 ### Themes (purchasable)
 
 `Themes` on the home screen opens a picker with Classic plus three cosmetic themes:

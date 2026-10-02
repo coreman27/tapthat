@@ -32,9 +32,9 @@
   function weeklyStatus() {
     var id = Weekly.weekId();
     var best = Store.weeklyBest(id);
-    return 'Week ' + parseInt(id.split('-W')[1], 10) + ' • ' +
-      (best ? 'your best ' + best : 'not played yet') + ' • new commands in ' +
-      Weekly.resetLabel(Weekly.msUntilReset());
+    return 'Week ' + parseInt(id.split('-W')[1], 10) + ' \u2022 ' +
+      (best ? 'Best ' + best : 'Not played yet') + ' \u2022 ' +
+      Weekly.resetLabel(Weekly.msUntilReset()) + ' left';
   }
 
   function refreshWeekly() {
@@ -106,7 +106,7 @@
       button.textContent = state.ready ? 'Unavailable right now' : 'Checking App Store...';
       button.disabled = true;
     } else {
-      button.textContent = 'UNLOCK - ' + price;
+      button.textContent = 'Unlock - ' + price;
       button.disabled = state.busy || transitioning;
     }
   }
@@ -361,7 +361,7 @@
     ].forEach(function (id) { el(id).disabled = state.busy || transitioning; });
     el('btn-remove-ads').disabled = state.busy || transitioning || !state.ready || state.adsRemoved ||
       !state.productAvailable || !state.price;
-    el('btn-remove-ads').textContent = state.adsRemoved ? 'ADS REMOVED' :
+    el('btn-remove-ads').textContent = state.adsRemoved ? 'Ads Removed' :
       (state.ready && state.productAvailable && state.price ? 'Remove Ads - ' + state.price :
         (state.ready ? 'Purchase unavailable' : 'Checking App Store...'));
     el('btn-restore').disabled = state.busy || transitioning || !state.ready;

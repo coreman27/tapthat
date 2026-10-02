@@ -51,8 +51,8 @@ function contrast(a, b) {
 }
 
 const GAMEPLAY = ['--red', '--green', '--blue', '--yellow', '--purple'];
-const CORE = ['--bg', '--bg2', '--fg', '--muted', '--accent', '--accent2', '--bg-glow',
-  '--line', '--line2', '--panel', '--panel2', '--title-glow', '--font'];
+const CORE = ['--bg', '--bg2', '--fg', '--muted', '--accent', '--on-accent', '--link', '--accent2',
+  '--bg-glow', '--blob2', '--line', '--line2', '--panel', '--panel2', '--title-glow', '--font'];
 
 const { Themes } = load(['themes']);
 const ids = Themes.LIST.filter((t) => t.id !== 'default').map((t) => t.id);
@@ -83,17 +83,73 @@ test('text, accents and gameplay colors stay legible on every theme background',
     assert.ok(contrast(t['--muted'], t['--bg']) >= 4.5, id + ': muted text contrast >= 4.5:1');
     assert.ok(contrast(t['--accent'], t['--bg']) >= 3, id + ': accent contrast >= 3:1');
     assert.ok(contrast(t['--fg'], t['--panel']) >= 7, id + ': text on panels >= 7:1');
+    assert.ok(contrast(t['--on-accent'], t['--accent']) >= 4.5, id + ': text on the accent button >= 4.5:1');
+    assert.ok(contrast(t['--link'], t['--bg']) >= 4.5, id + ': accent text on the background >= 4.5:1');
     GAMEPLAY.forEach((k) =>
       assert.ok(contrast(t[k], t['--bg']) >= 3, id + ': ' + k + ' distinguishable from the background (>= 3:1)'));
   });
 });
 
-test('default theme tokens keep the original look', () => {
+test('default theme tokens: quiet dark base, one solid accent', () => {
   const t = rootTokens();
-  assert.equal(t['--bg'], '#0b0b12');
-  assert.equal(t['--bg-glow'], '#1c1c2e');
-  assert.equal(t['--line'], '#2a2a3d');
-  assert.equal(t['--panel'], '#1d1d2b');
+  assert.equal(t['--bg'], '#0a0b0f');
+  assert.equal(t['--accent'], '#0b6ff0');
+  assert.equal(t['--on-accent'], '#ffffff');
+  assert.equal(t['--panel'], '#14161c');
+  GAMEPLAY.forEach((k) => assert.ok(t[k], k + ' is defined in the base tokens'));
+  assert.equal(t['--blue'], '#3b82f6');
+  assert.equal(t['--red'], '#ff3b46');
+});
+
+// ---- design system guards: keep the interface professional, not decorative ----
+test('controls use solid fills: no gradients except the fake notification icon', () => {
+  const gradients = css.match(/linear-gradient\([^)]*\)/g) || [];
+  assert.ok(gradients.length <= 1, 'found: ' + gradients.join(' | '));
+  assert.match(css, /\.fake-notif \.ic \{[^}]*linear-gradient/, 'the only gradient is the decorative iOS-style icon');
+  assert.doesNotMatch(css, /\.big-btn\.primary \{[^}]*gradient/);
+  assert.doesNotMatch(css, /\.logo-accent \{[^}]*gradient/);
+});
+
+test('no colored glows: every accent-colored shadow layer is an inset ring, never an outer glow', () => {
+  const layers = [...css.matchAll(/box-shadow:\s*([^;]+);/g)].flatMap((m) => m[1].split(/,(?![^()]*\))/).map((x) => x.trim()));
+  assert.ok(layers.length > 5, 'found the shadows to check');
+  layers.forEach((layer) => {
+    if (/var\(--(accent|accent2|blue|purple|link)\)/.test(layer)) {
+      assert.match(layer, /^inset /, 'colored outer shadow (glow): ' + layer);
+    }
+  });
+  assert.doesNotMatch(css, /\.big-btn\.primary \{[^}]*0 10px 30px -10px/, 'the old button glow is gone');
+});
+
+test('glass surfaces: blur, hairline border, and solid fallbacks for Reduce Transparency / no blur', () => {
+  assert.match(css, /--glass-blur: blur\(\d+px\) saturate\(/);
+  assert.match(css, /-webkit-backdrop-filter: var\(--glass-blur\)/, 'WebKit prefix present');
+  assert.match(css, /@media \(prefers-reduced-transparency: reduce\)/);
+  assert.match(css, /@supports not \(\(-webkit-backdrop-filter: blur\(1px\)\) or \(backdrop-filter: blur\(1px\)\)\)/);
+  assert.match(css, /@media \(prefers-reduced-motion: reduce\)/);
+  // every surface that is glass is in the shared rule, so the fallbacks cover all of them
+  const rule = css.match(/\.glass,([\s\S]*?)\{/)[1];
+  ['.big-btn.ghost', '.name-row', '.card-btn', '.glass-list', '.instruction', '.score-block', '.toast', '.theme-card', '.lb-list li']
+    .forEach((sel) => assert.ok(rule.includes(sel), sel + ' uses the shared glass material'));
+});
+
+test('the neutral game button is clearly distinct from the blue gameplay color', () => {
+  const m = css.match(/\.gbtn\.neutral \{[^}]*background:\s*(#[0-9a-f]{6})/i);
+  assert.ok(m, 'neutral button has a solid background');
+  assert.ok(contrast(m[1], rootTokens()['--blue']) >= 2.5, 'neutral vs blue contrast');
+  assert.ok(contrast('#0b0d12', m[1]) >= 7, 'dark label on the neutral button');
+});
+
+test('buttons use sentence case and the home screen groups navigation as a list', () => {
+  const html = read('index.html');
+  const labels = [...html.matchAll(/<button[^>]*class="big-btn[^"]*"[^>]*>([^<]+)<\/button>/g)].map((m) => m[1].trim());
+  assert.ok(labels.length >= 8);
+  labels.forEach((label) => assert.notEqual(label, label.toUpperCase(), 'not ALL CAPS: ' + label));
+  assert.match(html, /<div class="glass-list">/);
+  ['btn-how', 'btn-themes', 'btn-lb', 'btn-store'].forEach((id) =>
+    assert.match(html, new RegExp('<button id="' + id + '" class="row')));
+  assert.match(html, /<button id="btn-weekly" class="card-btn">/);
+  assert.doesNotMatch(read('css/styles.css'), /text-decoration:\s*underline/, 'no underlined web-style links');
 });
 
 function fakeDocument() {

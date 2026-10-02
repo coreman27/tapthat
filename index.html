@@ -36,7 +36,7 @@
     <!-- HOME -->
     <section id="screen-home" class="screen active">
       <div class="home-inner">
-        <h1 class="logo">DON'T<br /><span class="logo-accent">TAP THAT</span></h1>
+        <h1 class="logo">Don't<span class="logo-accent">Tap That</span></h1>
         <p class="tagline">Obey the command. Or don't. An AI is learning how to beat you.</p>
 
         <div class="name-row">
@@ -44,29 +44,39 @@
           <input id="playerName" type="text" maxlength="14" placeholder="Your name" autocomplete="off" spellcheck="false" />
         </div>
 
-        <button id="btn-play" class="big-btn primary">PLAY</button>
-        <button id="btn-weekly" class="big-btn ghost">WEEKLY CHALLENGE</button>
-        <p id="weekly-line" class="weekly-line"></p>
+        <button id="btn-play" class="big-btn primary">Play</button>
+
+        <button id="btn-weekly" class="card-btn">
+          <span class="cb-main">
+            <strong>Weekly Challenge</strong>
+            <span id="weekly-line" class="weekly-line"></span>
+          </span>
+          <i class="chev"></i>
+        </button>
+
+        <div class="glass-list">
+          <div class="gl-inner">
+            <button id="btn-lb" class="row hidden"><span>Weekly leaderboard</span><i class="chev"></i></button>
+            <button id="btn-themes" class="row hidden"><span>Themes</span><i class="chev"></i></button>
+            <button id="btn-how" class="row"><span>How to play</span><i class="chev"></i></button>
+            <button id="btn-store" class="row hidden"><span>Remove ads &amp; purchases</span><i class="chev"></i></button>
+          </div>
+        </div>
 
         <div class="best-line">
           <span>Best</span>
           <strong id="home-best">0</strong>
         </div>
-
-        <button id="btn-how" class="link-btn">How to play</button>
-        <button id="btn-lb" class="link-btn hidden">Weekly leaderboard</button>
-        <button id="btn-themes" class="link-btn hidden">Themes</button>
-        <button id="btn-store" class="link-btn hidden">Remove ads &amp; purchases</button>
       </div>
     </section>
 
     <!-- CHALLENGE INTRO (from a friend link) -->
     <section id="screen-challenge" class="screen">
       <div class="home-inner">
-        <div class="challenge-badge">CHALLENGE</div>
+        <div class="challenge-badge">Challenge</div>
         <h2 id="challenge-title" class="chal-title">Someone survived 0 commands.</h2>
         <p class="tagline">Can you beat them?</p>
-        <button id="btn-accept" class="big-btn primary">ACCEPT &amp; PLAY</button>
+        <button id="btn-accept" class="big-btn primary">Accept &amp; Play</button>
         <button id="btn-skip-challenge" class="link-btn">Just play normally</button>
       </div>
     </section>
@@ -109,9 +119,9 @@
         <div id="versus" class="versus hidden"></div>
         <p id="ad-break-notice" class="purchase-status hidden" role="status">A short ad may appear when you choose Try Again or Home.</p>
 
-        <button id="btn-again" class="big-btn primary">TRY AGAIN</button>
+        <button id="btn-again" class="big-btn primary">Try Again</button>
         <button id="btn-continue" class="big-btn ghost hidden"><span id="continue-title">Continue?</span><small id="continue-sub"></small></button>
-        <button id="btn-share" class="big-btn ghost">CHALLENGE A FRIEND</button>
+        <button id="btn-share" class="big-btn ghost">Challenge a Friend</button>
         <button id="btn-join-lb" class="link-btn hidden">Join the weekly leaderboard</button>
         <button id="btn-home" class="link-btn">Home</button>
         <button id="btn-over-store" class="link-btn hidden">Remove ads</button>
@@ -138,7 +148,7 @@
           <label for="ad-diagnostics-report">Report (select and copy to compare playtests)</label>
           <textarea id="ad-diagnostics-report" rows="8" readonly spellcheck="false"></textarea>
         </details>
-        <button id="btn-how-back" class="big-btn primary">GOT IT</button>
+        <button id="btn-how-back" class="big-btn primary">Got It</button>
       </div>
     </section>
 
@@ -147,7 +157,7 @@
         <h2 class="chal-title">Weekly leaderboard</h2>
         <p class="tagline">Compete with other players on the same weekly commands.</p>
         <p class="purchase-status" id="lb-privacy-copy">If you join, your display name, your weekly score and a random anonymous ID are sent to our server and shown to other players. No account, no email, no tracking. Delete it all anytime from the leaderboard screen.</p>
-        <button id="btn-lb-join" class="big-btn primary">JOIN</button>
+        <button id="btn-lb-join" class="big-btn primary">Join</button>
         <button id="btn-lb-nothanks" class="link-btn">Not now</button>
         <a class="link-btn" href="privacy.html">Privacy Policy</a>
       </div>
@@ -166,13 +176,13 @@
         <div id="lb-friends" class="lb-friends hidden">
           <p id="lb-group-code" class="weekly-line"></p>
           <button id="btn-lb-share-code" class="link-btn hidden">Share this group</button>
-          <button id="btn-lb-create" class="big-btn ghost">NEW FRIEND GROUP</button>
+          <button id="btn-lb-create" class="big-btn ghost">New Friend Group</button>
           <div class="name-row">
             <input id="lb-code-input" type="text" maxlength="9" placeholder="Group code" autocomplete="off" autocapitalize="characters" spellcheck="false" />
             <button id="btn-lb-joincode" class="link-btn">Join</button>
           </div>
         </div>
-        <button id="btn-lb-back" class="big-btn ghost">BACK</button>
+        <button id="btn-lb-back" class="big-btn ghost">Back</button>
         <button id="btn-lb-delete" class="link-btn">Delete my leaderboard data</button>
       </div>
     </section>
@@ -184,10 +194,10 @@
         <div id="theme-list" class="theme-list"></div>
         <div id="theme-buy" class="theme-buy hidden">
           <p id="theme-buy-note" class="purchase-status"></p>
-          <button id="btn-theme-buy" class="big-btn primary" disabled>UNLOCK</button>
+          <button id="btn-theme-buy" class="big-btn primary" disabled>Unlock</button>
         </div>
         <button id="btn-theme-restore" class="link-btn">Restore Purchases</button>
-        <button id="btn-themes-back" class="big-btn ghost">BACK</button>
+        <button id="btn-themes-back" class="big-btn ghost">Back</button>
       </div>
     </section>
 
@@ -202,7 +212,7 @@
         <button id="btn-privacy-options" class="link-btn hidden">Ad Privacy Choices</button>
         <button id="btn-store-retry" class="link-btn hidden">Retry Connection</button>
         <a class="link-btn" href="privacy.html">Privacy Policy</a>
-        <button id="btn-store-back" class="big-btn ghost">BACK</button>
+        <button id="btn-store-back" class="big-btn ghost">Back</button>
       </div>
     </section>
 
