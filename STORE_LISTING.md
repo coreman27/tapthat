@@ -38,6 +38,7 @@ The longer you play, the smarter it gets and the more personal it feels. It's no
 WHY YOU'LL KEEP TAPPING
 - AI that adapts to your reflexes in real time and targets your weakness
 - 17+ challenge types: tap, don't-tap, color, Stroop, swipe, hold, wait, catch, bait-and-switch, and more
+- A Weekly Challenge: everyone gets the same commands for the week, so you can compare with friends
 - Quick retries, with occasional ad breaks between runs
 - Difficulty that ramps as fast as you do
 - Optional one-time Remove Ads purchase, with Restore Purchases for your Apple Account
@@ -48,9 +49,17 @@ Adaptive difficulty runs entirely on your device. No game account or sign-up is 
 How long can you last against a game that learns exactly how to make you fail?
 ```
 
+## What's New (v1.1.0)
+```
+- New Weekly Challenge: the same commands for every player each week. Share your score and see who beats it.
+- A fresh, cleaner design.
+- Occasional ads between runs. A one-time Remove Ads purchase removes them for good, and you can restore it on any device.
+- Bug fixes and smoother taps.
+```
+
 ## What's New (v1.0.0)
 ```
-Adaptive reflex challenges, occasional ads between games, and an optional one-time Remove Ads purchase with purchase restoration.
+Adaptive reflex challenges. Challenge a friend with a link.
 ```
 
 ## App Review note
