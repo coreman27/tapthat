@@ -8,7 +8,7 @@ const vm = require('node:vm');
 const { setup, source, nativeState } = require('./helpers/monetization-harness');
 
 async function game(options = {}) {
-  const f = setup({ state: nativeState({ rewardedReady: true, ...(options.state || {}) }), ...options.setup });
+  const f = setup({ state: nativeState({ rewardedConfigured: true, rewardedReady: true, ...(options.state || {}) }), ...options.setup });
   const elements = new Map();
   function element(id) {
     if (!elements.has(id)) {
@@ -44,7 +44,7 @@ async function game(options = {}) {
     },
     Share: { readIncoming: () => null, share: () => Promise.resolve({ ok: true }) },
     Weekly: { weekId: () => '2026-W40', msUntilReset: () => 1e8, resetLabel: () => '1d', isWeekId: () => true },
-    Themes: { LIST: [], enabled: () => false, previewAll: () => false, apply: (i) => i, applyTrusted: (i) => i,
+    Themes: { LIST: [], enabled: () => false, available: () => false, previewAll: () => false, apply: (i) => i, applyTrusted: (i) => i,
       preview: (i) => i, resolve: (i) => i, canUse: () => true, find: () => null, ownership: () => 'free' },
     LeaderboardUI: { init() {}, afterWeeklyRun() {} },
     navigator: {}, location: { protocol: 'capacitor:' }
@@ -84,6 +84,18 @@ test('no offer for low scores, weekly runs, or outside the iOS app', async () =>
   assert.equal(weekly.hidden('btn-continue'), true, 'weekly runs are never assisted');
   const web = await game({ setup: { web: true } }); web.play(); web.fail(30);
   assert.equal(web.hidden('btn-continue'), true, 'no ad system on the web build');
+});
+
+test('without a configured rewarded ad unit, non-owners see no offer; owners still get the free continue', async () => {
+  const none = await game({ state: { rewardedConfigured: false, rewardedReady: false } });
+  none.play(); none.fail(30);
+  assert.equal(none.hidden('btn-continue'), true, 'no dead button when there is no video to offer');
+  assert.equal(none.element('btn-again').disabled, false);
+  assert.equal(none.calls.recordLoss[0].arg.rewardedOffered, false);
+  const owner = await game({ state: { rewardedConfigured: false, rewardedReady: false, adsRemoved: true } });
+  owner.play(); owner.fail(30);
+  assert.equal(owner.hidden('btn-continue'), false, 'owners keep their free continue');
+  assert.equal(owner.element('continue-sub').textContent, 'Free with Remove Ads');
 });
 
 test('an unavailable video disables the offer but never blocks the free retry', async () => {

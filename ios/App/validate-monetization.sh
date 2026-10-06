@@ -52,9 +52,14 @@ if [ "$test_ads" = "true" ]; then
 else
   if ! printf '%s\n' "$app_id" | grep -Eq '^ca-app-pub-[0-9]{16}~[0-9]{10}$' ||
      ! printf '%s\n' "$unit_id" | grep -Eq '^ca-app-pub-[0-9]{16}/[0-9]{10}$' ||
-     ! printf '%s\n' "$rewarded_id" | grep -Eq '^ca-app-pub-[0-9]{16}/[0-9]{10}$' ||
      printf '%s\n%s\n%s\n' "$app_id" "$unit_id" "$rewarded_id" | grep -q '3940256099942544'; then
-    echo "error: Production advertising requires your real AdMob app, interstitial and rewarded IDs."
+    echo "error: Production advertising requires your real AdMob IDs (no Google test IDs)."
+    exit 1
+  fi
+  # The rewarded unit is optional in production: empty turns Rewarded Continue off for
+  # non-owners. If set, it must be a real unit id.
+  if [ -n "$rewarded_id" ] && ! printf '%s\n' "$rewarded_id" | grep -Eq '^ca-app-pub-[0-9]{16}/[0-9]{10}$'; then
+    echo "error: MonetizationRewardedAdUnitID must be empty or a real AdMob rewarded unit id."
     exit 1
   fi
 fi

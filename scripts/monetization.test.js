@@ -239,7 +239,7 @@ test('UI preserves celebration, passes previous best, and prevents double-tap re
     },
     LeaderboardUI: { init() {}, afterWeeklyRun() {} },
     Themes: {
-      LIST: [], enabled: () => false, previewAll: () => false,
+      LIST: [], enabled: () => false, available: () => false, previewAll: () => false,
       apply: (id) => id || 'default', applyTrusted: (id) => { trusted.push(id); return id; },
       preview: (id) => id, resolve: (id) => id, canUse: () => true,
       find: () => null, ownership: () => 'free'

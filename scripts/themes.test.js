@@ -225,6 +225,14 @@ test('preview shows any known theme without owning or saving it', () => {
   assert.equal(document.attrs['data-theme'], undefined);
 });
 
+test('the Themes entry point appears only when there is something to unlock', () => {
+  const make = (state) => load(['themes'], { Monetization: { ownsTheme: () => false, getState: () => state } }).Themes;
+  assert.equal(make({ ownedThemes: [], themePrices: {} }).available(), false, 'no products in the App Store yet');
+  assert.equal(make({ ownedThemes: [], themePrices: { 'com.coreyhall.donttapthat.theme.arcade': '$0.99' } }).available(), true);
+  assert.equal(make({ ownedThemes: ['com.coreyhall.donttapthat.theme.space'], themePrices: {} }).available(), true, 'owners keep access to what they bought');
+  assert.equal(load(['themes']).Themes.available(), false, 'web build: no store, no Themes entry');
+});
+
 test('themes work without a Monetization object (web build): only Classic is usable', () => {
   const document = fakeDocument();
   const ctx = load(['themes'], { document });

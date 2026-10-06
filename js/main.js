@@ -273,6 +273,8 @@
   function continueOfferFor(score, weeklyId) {
     var state = Monetization.getState();
     if (weeklyId || score < CONTINUE_MIN_SCORE || !state.supported || !state.ready || !Engine.canResume()) return null;
+    // Without a configured rewarded ad unit there is no video to offer; owners still get theirs free.
+    if (!state.adsRemoved && !state.rewardedConfigured) return null;
     return { enabled: state.adsRemoved || state.rewardedReady };
   }
 
@@ -375,6 +377,7 @@
     lastMonetizationMessage = state.message;
     renderBreakNotice();
     renderContinue();
+    el('btn-themes').classList.toggle('hidden', !Themes.available());
     reconcileTheme(state);
   }
 
@@ -515,7 +518,6 @@
     // Ownership is unknown until StoreKit reports it, so show the saved theme on trust and
     // reconcile later. Never rewrite the saved choice here: that would downgrade paying players.
     Themes.applyTrusted(Store.theme);
-    el('btn-themes').classList.toggle('hidden', !Themes.enabled());
     LeaderboardUI.init({ playerName: playerName });
 
     el('playerName').value = Store.name || '';

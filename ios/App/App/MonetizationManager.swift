@@ -146,6 +146,7 @@ final class MonetizationManager: NSObject, FullScreenContentDelegate {
         var themePrices = JSObject()
         for (id, themeProduct) in themeProducts { themePrices[id] = themeProduct.displayPrice }
         result["rewardedReady"] = cachedRewarded != nil
+        result["rewardedConfigured"] = rewardedConfigured
         result["ownedThemes"] = ownedThemes.sorted()
         result["themePrices"] = themePrices
         if let message { result["message"] = message }
@@ -761,7 +762,7 @@ extension MonetizationManager {
 // load failure or any error resolves with rewarded=false. Remove Ads owners never reach this
 // code (the app grants their continue without a video).
 extension MonetizationManager {
-    fileprivate var rewardedConfigured: Bool {
+    var rewardedConfigured: Bool {
         guard adsConfigured else { return false }
         if testAds { return rewardedID == Self.testRewardedID }
         return rewardedID.range(of: #"^ca-app-pub-[0-9]{16}/[0-9]{10}$"#, options: .regularExpression) != nil

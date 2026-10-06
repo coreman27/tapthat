@@ -18,6 +18,7 @@
     privacyOptionsRequired: false,
     needsConsent: false,
     testAds: false,
+    rewardedConfigured: false, // a rewarded ad unit is set up in this build (otherwise the offer is not shown)
     rewardedReady: false, // a rewarded video is loaded and can be shown right now
     ownedThemes: [],   // cosmetic theme product keys the player owns (verified by StoreKit)
     themePrices: {},   // theme product id -> localized price string
@@ -47,6 +48,7 @@
     state.needsConsent = value.needsConsent;
     state.testAds = value.testAds;
     state.message = value.message || '';
+    state.rewardedConfigured = value.rewardedConfigured === true;
     state.rewardedReady = value.rewardedReady === true;
     // Themes are optional polish: malformed theme data must never break ads or Remove Ads.
     state.ownedThemes = Array.isArray(value.ownedThemes) && value.ownedThemes.every(isString) ? value.ownedThemes.slice() : [];

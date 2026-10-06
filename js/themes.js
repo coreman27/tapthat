@@ -79,9 +79,23 @@
     return known;
   }
 
+  // The Themes entry point is shown only when there is something to unlock: the App Store
+  // has returned at least one theme product, or the player already owns one. This keeps a
+  // build shippable before the products exist (no dead buttons) and on the web build.
+  function available() {
+    if (!ENABLED) return false;
+    if (PREVIEW_ALL) return true;
+    var m = global.Monetization;
+    if (!m || typeof m.getState !== 'function') return false;
+    var state = m.getState();
+    return !!(state && ((state.ownedThemes && state.ownedThemes.length) ||
+      (state.themePrices && Object.keys(state.themePrices).length)));
+  }
+
   global.Themes = {
     LIST: LIST,
     enabled: function () { return ENABLED; },
+    available: available,
     previewAll: function () { return PREVIEW_ALL; },
     find: find,
     ownership: ownership,
