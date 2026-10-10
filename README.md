@@ -253,6 +253,7 @@ score-aware timing is implemented; Rewarded Continue is still planned.
 - [x] Best score, instant retry, friend-challenge links
 - [x] PWA (installable + offline) and Capacitor native scaffold
 - [ ] Special challenge packs (optional new game modes)
+- [ ] Compass challenge: point your phone the right way, with a theme-matched dial (planned v1.2; spec in `GAME_SPEC.md` 9a, starts with a real-phone spike)
 - [x] iOS interstitial cadence and one-time Remove Ads purchase integration
 - [ ] Live AdMob / App Store product setup and monetization release validation
 - [ ] Retention baseline and one-more-try measurement

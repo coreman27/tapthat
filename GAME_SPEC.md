@@ -194,7 +194,116 @@ Each mechanic already multiplies into many concrete commands (5 colors × N deco
 - "You always tap. Don't." (targets the player's known habit)
 - Rematch a "ghost" of the player's own best run
 
+**Motion / sensors** (new family; first entry is specified below)
+- **Point your phone the right way** (compass) — see 9a
+- Later, only if 9a feels good: tilt to level, shake it, hold the phone upside down
+
 Target: ship in themed packs of ~10, each pack reusing the existing `build(env)` challenge contract in `js/challenges.js` — add a definition, set `category` + `minScore` + timing, done.
+
+### 9a. Compass challenge — "POINT YOUR PHONE IN THE RIGHT DIRECTION" (planned, v1.2)
+
+Not started. Target release: **v1.2** (v1.1 is already packaged; see `RELEASE_1.1.md`).
+
+**The idea.** A random direction is chosen. The player physically turns (body and phone) until the
+phone points that way. A dial on screen shows how close they are, and the round passes the moment
+they are facing the right way. If time runs out it fails like any other command (`env.fail`).
+They get extra time because turning takes longer than tapping.
+
+**Rules**
+- Command text: `POINT YOUR PHONE IN THE RIGHT DIRECTION`. The target is never printed as a bearing
+  or as "north/east": the player follows the dial, so nobody needs to know compass directions.
+- **Time:** `baseTime` 7000 ms easing to `minTime` 5000 ms at full difficulty (other commands are
+  about 1.5 to 2.5 s). Tune in playtests; the numbers are the plan's starting point only.
+- **Pass:** heading within the tolerance of the target, held for a short dwell, so sweeping past the
+  target by accident does not count. Starting values: tolerance **±15°** (down to ±10° at full
+  difficulty), dwell **400 ms**.
+- **Target choice:** random bearing at least **90°** and at most **170°** from where the phone points
+  when the round starts. So it always needs a real turn, and never more than a half turn.
+- **Unlock:** `minScore` about **20**, never the first command of a run, and not within about 6 rounds
+  of the previous compass round. It is slower than the rest, so it should be an occasional surprise.
+- **Category:** a new `motion` category, so adaptive weighting and fail stats treat it like the others.
+- **Not in the weekly challenge.** See "Fairness" below. This is a firm rule.
+
+**The indicator (matches the theme)**
+- A large dial in the playfield: a ring whose arc fills as the phone turns toward the target, and a
+  marker showing which way to turn (the short way round). Passing turns the ring green (the gameplay
+  green, which keeps its meaning) and plays the success haptic.
+- All colors come from theme tokens (`--accent` for progress, `--line2`/glass for the track,
+  `--link` for the marker). Any glow may only come from `--title-glow`, so Classic and Space stay
+  glow-free and the design-guard tests keep passing. Contrast of the ring against each theme's
+  background is tested (>= 3:1), like the gameplay colors.
+- Optional haptic "ticks" that speed up as the player gets closer (Capacitor Haptics), with a
+  haptics-off switch. Reduce Motion: no easing on the dial, but it must still track the phone, because
+  that movement is the feedback.
+- Open question for the first playtest: arrow always on, or arrow only at low difficulty with a
+  hot/cold ring at high difficulty. Default: ring plus marker always.
+
+**Heading source (decision and risk)**
+- The app is a Capacitor WebView. Web `deviceorientation` on iOS needs an explicit permission call
+  from a tap and behaves differently in a WebView than in Safari. **Plan: a small native Capacitor
+  plugin using CoreMotion** (like `MonetizationPlugin`), with a JS facade (`Heading`) so the game never
+  talks to the sensor directly. Expected: no permission prompt, and no location permission (magnetic
+  heading is enough because the target is random). **Verify both in the first spike**; if a prompt turns
+  out to be required, add a one-time explanation before the first compass round, never mid-round.
+- **What "pointing" means:** held upright, the direction the back of the phone faces; held flat, the
+  direction the top edge faces. The plan uses whichever is more horizontal. **Verify on a real phone.**
+- Smooth the signal (circular low-pass) and use the magnetometer accuracy value: if it is poor, show a
+  "wave your phone in a figure 8" calibration hint before the round starts (not during the timer).
+- Web / PWA build: the compass command is never selected (no reliable sensor access).
+- **The iOS simulator has no magnetometer.** Development uses a fake driver behind the same facade
+  (a slider overlay in debug builds only) so the logic can be exercised without a device.
+
+**Fairness and safety**
+- **Weekly challenge:** every player must get the identical sequence, but some phones cannot do this
+  command (no magnetometer, sensor error, motion switched off). So compass defs carry
+  `weekly: false` and are filtered out in fixed (weekly) selection. A golden-sequence test must prove
+  existing weeks' sequences are byte-for-byte unchanged after the def is added, because the leaderboard
+  server replays the sequence with the same `challenges.js` (see `server/README.md`). Also add a
+  `rulesVersion` to weekly score submissions so a server and app on different rules cannot disagree
+  silently.
+- **Never punish a broken sensor.** If no heading arrives within about 700 ms of the round start, the
+  round passes without penalty (the engine already does this for challenges that error), the command
+  is disabled for the session, and the player sees nothing worse than a missing round.
+- **Switch:** a "Motion challenges" on/off switch (default on), for players who cannot or should not
+  turn around (on a couch, in a car or plane, mobility or vestibular reasons). It lives in a small
+  Settings area next to the other toggles. Sensor-unavailable devices skip the command automatically.
+- Never ask players to move while walking or driving: the how-to-play screen says to play
+  seated or standing in a safe place, and the dial is large so the screen is easy to follow.
+- **Rewarded Continue / ads:** unaffected. A continue never offers a skipped compass round.
+
+**Privacy and the store**
+- Sensor data is read and used on the device only. Nothing is stored or sent. No App Privacy answer
+  changes (still no collection for this feature). `privacy.html` gets one sentence saying the app uses the
+  phone's orientation sensors for this command and that the data stays on the device. If the spike shows an
+  Info.plist usage string is needed, it says: "Used for the compass challenge. Motion data stays on your
+  device."
+
+**Build plan (one small story at a time, each tested before the next)**
+1. **Spike on a real phone:** CoreMotion heading, upright versus flat, calibration behavior, whether
+   any permission appears. Output: a short note in this section. Nothing else ships before this.
+2. **`js/compass.js`: pure logic, no DOM** (heading difference with wraparound, circular smoothing,
+   target choice, proximity, dwell tracker, tolerance by difficulty), with unit tests.
+3. **`Heading` facade, the native plugin, and the fake driver.**
+4. **The challenge and the dial**, `weekly: false`, availability and fail-open rules, cleanup of all
+   listeners/timers via `env.addCleanup`.
+5. **Settings switch, how-to-play text, privacy page sentence.**
+6. **Device test and tuning** (time, tolerance, dwell, `minScore`, frequency) with real players.
+
+**Tests that must exist**
+- Heading math: wraparound (359 vs 1), exactly 180, negative and over-360 inputs, NaN/missing samples.
+- Target choice stays within 90 to 170 degrees over many random seeds.
+- Dwell: passes only after holding in tolerance; resets if the player leaves; a fly-through never passes.
+- Through the real engine with the fake driver: pass, timeout fail, sensor silent (fail open, disabled for
+  the session), listeners and timers released after every outcome.
+- Never selected: on web, when the switch is off, when unavailable, and in weekly mode, with the weekly
+  golden-sequence test and the server replay test both unchanged.
+- Dial colors come from theme tokens only, with contrast checks for every theme.
+- Native: compile check in CI-style build, plus the device checklist from step 1 and 6 (eight headings,
+  calibration, upright and flat, indoors near metal).
+
+**Decisions made by default (change any of these)**
+- v1.2, not v1.1. Native CoreMotion plugin over web `deviceorientation`. Excluded from weekly. Extra
+  time of roughly 3x a normal command. Ring plus marker indicator. Default on, with an off switch.
 
 ---
 
@@ -203,4 +312,5 @@ Target: ship in themed packs of ~10, each pack reusing the existing `build(env)`
 - **Add a challenge:** append a `def({...})` in `js/challenges.js` with `id, category, minScore, baseTime, minTime, timeoutResult?, build(env)`. It's automatically picked up by the adaptive selector.
 - **`env` API:** `field, notifLayer, fw, fh, difficulty, score, rint, pick, shuffle, makeBtn, setInstruction, addCleanup, success(), fail(reason)`.
 - **Always** register teardown via `env.addCleanup(fn)` (timers, rAF loops, listeners) so rounds don't leak.
+- **Sensor challenges (planned, see 9a):** read hardware only through a facade (e.g. `Heading`), never directly from a challenge, so a fake driver can stand in for the simulator and tests. A def may declare `weekly: false` to be excluded from the fixed weekly selection; any challenge some devices cannot perform must set it, or the seeded weekly sequences would differ between players.
 - **Native:** logic is platform-agnostic web; Capacitor wraps it. Haptics can upgrade from `navigator.vibrate` to `@capacitor/haptics` for richer iOS feedback.
