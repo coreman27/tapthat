@@ -300,7 +300,7 @@ test('the safety UI exists in the page: name field, rules, report sheet, contact
     assert.ok(html.includes('id="' + id + '"'), id);
   }
   assert.match(html, /Offensive names are removed/);
-  assert.match(html, /mailto:support@tapthat\.game/);
+  assert.match(html, /mailto:support@donttapthat\.com/);
 });
 
 
@@ -320,4 +320,16 @@ test('the shipped config points at an https API, and enabling it requires the pr
   assert.match(manifest, /NSPrivacyCollectedDataTypeGameplayContent/, '...and the scores');
   const terraform = fs.readFileSync(path.join(root, 'server/terraform/variables.tf'), 'utf8');
   assert.ok(terraform.includes('capacitor://localhost'), 'the API allows the app origin');
+});
+
+
+test('every place that tells players how to reach us uses one address, on a domain we own', () => {
+  const root = path.join(__dirname, '..');
+  const files = ['index.html', 'privacy.html', 'server/README.md'];
+  const found = new Set();
+  for (const f of files) {
+    const text = fs.readFileSync(path.join(root, f), 'utf8');
+    for (const m of text.matchAll(/[A-Za-z0-9._-]+@[A-Za-z0-9.-]+\.[a-z]{2,}/g)) found.add(m[0]);
+  }
+  assert.deepEqual([...found], ['support@donttapthat.com'], 'one contact address everywhere (tapthat.game is not a real domain)');
 });
