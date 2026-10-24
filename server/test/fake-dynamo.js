@@ -1,4 +1,5 @@
 'use strict';
+const assert = require('node:assert/strict');
 /* fake-dynamo.js — a minimal DynamoDB document-client fake for testing store-dynamo.js.
  * It understands only the expressions the store uses, and it deliberately paginates
  * (2 items per page) and returns unprocessed batch items so retry/paging code is exercised. */
@@ -17,6 +18,21 @@ const cmd = {
   BatchWriteCommand: class BatchWriteCommand extends Command {}
 };
 
+// Real DynamoDB rejects reserved words (name, ttl, hidden, ...) used bare in an expression. Rather
+// than guess the full list, enforce the safe rule: every non-key attribute must go through an
+// #alias. Key attributes are never reserved words.
+const SAFE_BARE = new Set(['pk', 'sk', 'gsi1pk', 'gsi1sk', 'gsi2pk', 'gsi2sk']);
+const SYNTAX = new Set(['attribute_not_exists', 'attribute_exists', 'begins_with', 'size', 'and', 'or', 'not', 'set', 'remove']);
+function assertAliased(expression, label) {
+  if (!expression) return;
+  const bare = (expression.replace(/#\w+/g, ' ').replace(/:\w+/g, ' ').match(/[A-Za-z_][A-Za-z0-9_]*/g) || [])
+    .filter((w) => !SYNTAX.has(w.toLowerCase()) && !SAFE_BARE.has(w));
+  if (bare.length) {
+    throw new Error('ValidationException: ' + label + ' uses unaliased attribute name(s) ' + bare.join(', ') +
+      ' (real DynamoDB rejects reserved words such as name, ttl, hidden; alias with ExpressionAttributeNames)');
+  }
+}
+
 function conditionError() {
   const e = new Error('The conditional request failed');
   e.name = 'ConditionalCheckFailedException';
@@ -33,7 +49,8 @@ function createFakeDynamo(table) {
     const cond = input.ConditionExpression;
     if (cond === 'attribute_not_exists(pk)') {
       if (existing) throw conditionError();
-    } else if (cond === 'attribute_not_exists(pk) OR score < :score') {
+    } else if (cond === 'attribute_not_exists(pk) OR #s < :score') {
+      assert.equal((input.ExpressionAttributeNames || {})['#s'], 'score');
       if (existing && !(existing.score < input.ExpressionAttributeValues[':score'])) throw conditionError();
     } else if (cond) {
       throw new Error('fake does not support condition: ' + cond);
@@ -75,7 +92,8 @@ function createFakeDynamo(table) {
     const next = start + size < rows.length ? start + size : undefined;
     let page = read;
     if (input.FilterExpression) {
-      assertExpr(input.FilterExpression, 'attribute_not_exists(hidden)');
+      assertExpr(input.FilterExpression, 'attribute_not_exists(#h)');
+      assert.equal((input.ExpressionAttributeNames || {})['#h'], 'hidden');
       page = read.filter((i) => i.hidden === undefined);
     }
     return input.Select === 'COUNT'
@@ -92,6 +110,10 @@ function createFakeDynamo(table) {
       calls.send++;
       const input = command.input;
       if (input.TableName && input.TableName !== table) throw new Error('wrong table');
+      assertAliased(input.ConditionExpression, 'ConditionExpression');
+      assertAliased(input.FilterExpression, 'FilterExpression');
+      assertAliased(input.UpdateExpression, 'UpdateExpression');
+      assertAliased(input.KeyConditionExpression, 'KeyConditionExpression');
       if (command instanceof cmd.PutCommand) return put(input);
       if (command instanceof cmd.GetCommand) { const it = items.get(k(input.Key)); return it ? { Item: { ...it } } : {}; }
       if (command instanceof cmd.UpdateCommand) {

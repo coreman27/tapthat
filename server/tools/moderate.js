@@ -53,17 +53,18 @@ function makeClient({ table, region, run }) {
         '--expression-attribute-values', JSON.stringify({ ':d': { S: 'D#' + deviceId }, ':s': { S: 'S#' } })]);
       return (out.Items || []).map(unmarshal);
     },
+    // "hidden" is a DynamoDB reserved word, so attributes are always aliased.
     setHidden(pk, sk, hidden) {
-      aws(['update-item', '--key', key(pk, sk),
+      aws(['update-item', '--key', key(pk, sk), '--expression-attribute-names', JSON.stringify({ '#h': 'hidden' }),
         ...(hidden
-          ? ['--update-expression', 'SET hidden = :t', '--expression-attribute-values', JSON.stringify({ ':t': { BOOL: true } })]
-          : ['--update-expression', 'REMOVE hidden'])]);
+          ? ['--update-expression', 'SET #h = :t', '--expression-attribute-values', JSON.stringify({ ':t': { BOOL: true } })]
+          : ['--update-expression', 'REMOVE #h'])]);
     },
     setBanned(deviceId, banned) {
-      aws(['update-item', '--key', key('D#' + deviceId, 'KEY'),
+      aws(['update-item', '--key', key('D#' + deviceId, 'KEY'), '--expression-attribute-names', JSON.stringify({ '#b': 'banned' }),
         ...(banned
-          ? ['--update-expression', 'SET banned = :t', '--expression-attribute-values', JSON.stringify({ ':t': { BOOL: true } })]
-          : ['--update-expression', 'REMOVE banned'])]);
+          ? ['--update-expression', 'SET #b = :t', '--expression-attribute-values', JSON.stringify({ ':t': { BOOL: true } })]
+          : ['--update-expression', 'REMOVE #b'])]);
     }
   };
 }

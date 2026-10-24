@@ -23,6 +23,9 @@ const SCORE_TTL_DAYS = 70;
 const GROUP_TTL_DAYS = 365;
 const REPORT_TTL_DAYS = 180;
 const MAX_TS = 9999999999999;
+// DynamoDB reserved words (hidden, name, ttl, ...) are rejected when used bare in an expression,
+// so every non-key attribute in an expression goes through an alias.
+const HIDDEN_NAME = { '#h': 'hidden' };
 
 const pad = (n, width) => String(n).padStart(width, '0');
 // Descending index order = higher score first, then earlier submission first.
@@ -99,8 +102,8 @@ function createDynamoStore({ doc, cmd, table, now, sleep }) {
       // Remember which device owns this public ref (for moderation) and whether it is hidden.
       const known = await doc.send(new cmd.UpdateCommand({
         TableName: table, Key: { pk: 'RF#' + ref, sk: 'DEV' },
-        UpdateExpression: 'SET deviceId = :d, #n = :n, gsi2pk = :g, gsi2sk = :gs, #t = :t',
-        ExpressionAttributeNames: { '#n': 'name', '#t': 'ttl' },
+        UpdateExpression: 'SET #d = :d, #n = :n, gsi2pk = :g, gsi2sk = :gs, #t = :t',
+        ExpressionAttributeNames: { '#d': 'deviceId', '#n': 'name', '#t': 'ttl' },
         ExpressionAttributeValues: { ':d': deviceId, ':n': name, ':g': 'D#' + deviceId, ':gs': 'RF#' + ref, ':t': ttlFrom(ts, SCORE_TTL_DAYS) },
         ReturnValues: 'ALL_NEW'
       }));
@@ -116,7 +119,8 @@ function createDynamoStore({ doc, cmd, table, now, sleep }) {
         await doc.send(new cmd.PutCommand({
           TableName: table,
           Item: item,
-          ConditionExpression: 'attribute_not_exists(pk) OR score < :score',
+          ConditionExpression: 'attribute_not_exists(pk) OR #s < :score',
+          ExpressionAttributeNames: { '#s': 'score' },
           ExpressionAttributeValues: { ':score': score }
         }));
         return { improved: true, best: score };
@@ -150,7 +154,8 @@ function createDynamoStore({ doc, cmd, table, now, sleep }) {
         const out = await doc.send(new cmd.QueryCommand({
           TableName: table, IndexName: 'byScore',
           KeyConditionExpression: 'gsi1pk = :p',
-          FilterExpression: 'attribute_not_exists(hidden)',
+          FilterExpression: 'attribute_not_exists(#h)',
+        ExpressionAttributeNames: HIDDEN_NAME,
           ExpressionAttributeValues: { ':p': 'W#' + weekId },
           ScanIndexForward: false, Limit: limit + 10, ExclusiveStartKey: key
         }));
@@ -163,7 +168,8 @@ function createDynamoStore({ doc, cmd, table, now, sleep }) {
     async countScores(weekId) {
       return countAll({
         KeyConditionExpression: 'pk = :p AND begins_with(sk, :s)',
-        FilterExpression: 'attribute_not_exists(hidden)',
+        FilterExpression: 'attribute_not_exists(#h)',
+        ExpressionAttributeNames: HIDDEN_NAME,
         ExpressionAttributeValues: { ':p': 'W#' + weekId, ':s': 'S#' }
       });
     },
@@ -173,7 +179,8 @@ function createDynamoStore({ doc, cmd, table, now, sleep }) {
       const higher = await countAll({
         IndexName: 'byScore',
         KeyConditionExpression: 'gsi1pk = :p AND gsi1sk >= :s',
-        FilterExpression: 'attribute_not_exists(hidden)',
+        FilterExpression: 'attribute_not_exists(#h)',
+        ExpressionAttributeNames: HIDDEN_NAME,
         ExpressionAttributeValues: { ':p': 'W#' + weekId, ':s': pad(score + 1, 4) + '#' }
       });
       return 1 + higher;
@@ -267,7 +274,7 @@ function createDynamoStore({ doc, cmd, table, now, sleep }) {
       if (!info.Item) return false;
       await doc.send(new cmd.UpdateCommand({
         TableName: table, Key: { pk: 'RF#' + ref, sk: 'DEV' },
-        UpdateExpression: 'SET hidden = :t', ExpressionAttributeValues: { ':t': true }
+        UpdateExpression: 'SET #h = :t', ExpressionAttributeNames: HIDDEN_NAME, ExpressionAttributeValues: { ':t': true }
       }));
       const owned = await queryAll({
         IndexName: 'byDevice',
@@ -277,7 +284,7 @@ function createDynamoStore({ doc, cmd, table, now, sleep }) {
       for (const item of owned) {
         await doc.send(new cmd.UpdateCommand({
           TableName: table, Key: { pk: item.pk, sk: item.sk },
-          UpdateExpression: 'SET hidden = :t', ExpressionAttributeValues: { ':t': true }
+          UpdateExpression: 'SET #h = :t', ExpressionAttributeNames: HIDDEN_NAME, ExpressionAttributeValues: { ':t': true }
         }));
       }
       return true;
@@ -286,7 +293,7 @@ function createDynamoStore({ doc, cmd, table, now, sleep }) {
     async banDevice(deviceId) {
       await doc.send(new cmd.UpdateCommand({
         TableName: table, Key: { pk: 'D#' + deviceId, sk: 'KEY' },
-        UpdateExpression: 'SET banned = :t', ExpressionAttributeValues: { ':t': true }
+        UpdateExpression: 'SET #b = :t', ExpressionAttributeNames: { '#b': 'banned' }, ExpressionAttributeValues: { ':t': true }
       }));
     },
 

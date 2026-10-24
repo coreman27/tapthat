@@ -40,7 +40,10 @@ function world() {
       const it = fake.items.get(key.pk.S + '|' + key.sk.S) || { pk: key.pk.S, sk: key.sk.S };
       fake.items.set(it.pk + '|' + it.sk, it);
       const expr = flag('--update-expression');
-      const field = expr.split(/[ =]/)[1];
+      const names = flag('--expression-attribute-names') ? JSON.parse(flag('--expression-attribute-names')) : {};
+      const alias = expr.split(/[ =]/)[1];
+      const field = names[alias];
+      assert.ok(field, 'the CLI aliases attribute names (reserved words): ' + expr);
       if (expr.startsWith('SET')) it[field] = true; else delete it[field];
       return '';
     }
