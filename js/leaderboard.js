@@ -40,10 +40,16 @@
     return global.btoa(s).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
   }
 
-  function optIn() {
-    if (!enabled()) return false;
+  // Creates the random anonymous id and secret key on first need. Never called just to look
+  // at the board: only when joining, or when the player sends a report.
+  function ensureIdentity() {
     var lb = Store.lb;
     if (!lb.deviceId || !lb.deviceKey) Store.setLb({ deviceId: uuid(), deviceKey: secret() });
+  }
+
+  function optIn() {
+    if (!enabled()) return false;
+    ensureIdentity();
     Store.setLb({ optIn: true });
     return true;
   }
@@ -136,9 +142,11 @@
   function unblockAll() { Store.setLb({ blocked: [] }); }
 
   // Reports the entry and hides it from this device straight away, even if the network fails.
+  // Works without joining: sending a report only needs an anonymous id (created now if needed).
   function report(ref, weekId, reason) {
     block(ref);
-    if (!isOptedIn()) return Promise.reject(makeError('not_opted_in', 0, 'Join the leaderboard first.'));
+    if (!enabled()) return Promise.reject(makeError('disabled', 0, 'Leaderboard is not available.'));
+    ensureIdentity();
     return request('POST', '/v1/report', Object.assign(credentials(), { ref: ref, weekId: weekId, reason: reason || 'name' }));
   }
 
@@ -188,6 +196,7 @@
     enabled: enabled,
     isOptedIn: isOptedIn,
     optIn: optIn,
+    ensureIdentity: ensureIdentity,
     submit: submit,
     flushPending: flushPending,
     board: board,

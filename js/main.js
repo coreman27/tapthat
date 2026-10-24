@@ -12,14 +12,58 @@
   var transitioning = false;
 
   function playerName() {
-    var n = (el('playerName').value || Store.name || '').trim();
-    if (!n) n = 'Player';
-    return n.slice(0, 14);
+    return Store.name || 'Player';
+  }
+
+  // ---- the player card on the home screen, and the sheet that edits it ----
+  function renderPlayer(justSaved) {
+    var name = Store.name || '';
+    var card = el('btn-name');
+    card.classList.toggle('empty', !name);
+    el('player-avatar').textContent = name ? Profile.initial(name) : '+';
+    el('player-name-text').textContent = name || 'Add your name';
+    el('player-sub').textContent = Profile.subtitle(name, Store.best);
+    if (justSaved) {
+      card.classList.remove('just-saved');
+      void card.offsetWidth; // restart the little pop
+      card.classList.add('just-saved');
+    }
+  }
+
+  function openNameSheet() {
+    var input = el('name-input');
+    input.value = Store.name || '';
+    el('name-sheet').classList.remove('hidden');
+    // Focus inside the tap (iOS only raises the keyboard from a user gesture) and highlight the
+    // current name so typing replaces it.
+    input.focus();
+    input.select();
+    setTimeout(function () {
+      if (!el('name-sheet').classList.contains('hidden')) {
+        try { input.setSelectionRange(0, input.value.length); } catch (e) { /* not selectable */ }
+      }
+    }, 80);
+  }
+
+  function closeNameSheet() {
+    el('name-sheet').classList.add('hidden');
+    el('name-input').blur();
+  }
+
+  function saveName() {
+    var name = Profile.normalize(el('name-input').value);
+    if (!name) { UI.toast('Pick a name first.'); return; }
+    var wasEmpty = !Store.name;
+    var changed = name !== Store.name;
+    Store.setName(name);
+    closeNameSheet();
+    renderPlayer(changed);
+    if (changed) UI.toast(Profile.greeting(name, wasEmpty), 2600);
   }
 
   function refreshBest() {
-    el('home-best').textContent = Store.best;
     el('hud-best').textContent = Store.best;
+    renderPlayer(false);
   }
 
   var runOpts = null; // { weeklyId } for the current/last run; null means a normal run
@@ -170,10 +214,7 @@
     pendingBreak = null;
     gameActive = true;
     Sound.unlock();
-    Store.setName((el('playerName').value || '').trim());
-    // Dismiss the keyboard; iOS restores the viewport when dismissal completes.
-    var nameInput = el('playerName');
-    if (nameInput) nameInput.blur();
+    // Dismiss any keyboard; iOS restores the viewport when dismissal completes.
     if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
     UI.show('game');
     Engine.start(runOpts);
@@ -492,8 +533,17 @@
       if (!document.hidden) { Monetization.touch(); refreshWeekly(); }
     });
 
-    // keep name in sync
-    el('playerName').addEventListener('change', function () { Store.setName(this.value.trim()); });
+    // the player card: tap to change the name
+    el('btn-name').addEventListener('click', openNameSheet);
+    el('btn-name-save').addEventListener('click', saveName);
+    el('btn-name-cancel').addEventListener('click', closeNameSheet);
+    el('name-input').addEventListener('keydown', function (event) {
+      if (event.key === 'Enter') { event.preventDefault(); saveName(); }
+      else if (event.key === 'Escape') closeNameSheet();
+    });
+    el('name-sheet').addEventListener('click', function (event) {
+      if (event.target === el('name-sheet')) closeNameSheet(); // tap outside the card
+    });
 
     // Unlock audio on first interaction (iOS requirement)
     document.addEventListener('pointerdown', function once() {
@@ -518,9 +568,10 @@
     // Ownership is unknown until StoreKit reports it, so show the saved theme on trust and
     // reconcile later. Never rewrite the saved choice here: that would downgrade paying players.
     Themes.applyTrusted(Store.theme);
-    LeaderboardUI.init({ playerName: playerName });
+    LeaderboardUI.init({ playerName: playerName, onNameChanged: function () { renderPlayer(true); } });
 
-    el('playerName').value = Store.name || '';
+    renderPlayer(false);
+    UI.onShow = function (id) { if (id === 'home') LeaderboardUI.refreshPreview(); };
     refreshBest();
     refreshWeekly();
     wire();

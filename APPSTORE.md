@@ -93,7 +93,7 @@ requires adapting and testing the game layout before removing this flag.
    - **Subtitle:** `The AI that learns to beat you`
    - **Category:** Games ▸ Arcade / Puzzle
    - **Promotional text, Description, Keywords, support URL, marketing URL** — see [`STORE_LISTING.md`](STORE_LISTING.md)
-   - **Privacy Policy URL** (required — even a simple page) — **live now:** https://d10kns7njmuyxo.cloudfront.net/privacy.html
+   - **Privacy Policy URL** (required — even a simple page) — **live now:** https://hallsoftwaresolutions.com/dont-tap-that/privacy/
    - **Age rating** questionnaire
 4. **App Privacy:** adaptive gameplay stays on-device, but the monetized iOS build
    includes Google Mobile Ads and Apple in-app purchases. **Do not declare "Data
@@ -152,7 +152,7 @@ xcrun altool --upload-app -f build/ipa/App.ipa --type ios \
 - [ ] Age-rating questionnaire updated: Advertising = Yes
 - [ ] Live AdMob setup and Remove Ads product ready; test ads disabled for release
 - [ ] Apple Developer account + signing team selected  *(account enrolled ✅ — select your Team in Xcode ▸ Signing & Capabilities)*
-- [x] Privacy Policy URL live → https://d10kns7njmuyxo.cloudfront.net/privacy.html
+- [x] Privacy Policy URL live → https://hallsoftwaresolutions.com/dont-tap-that/privacy/
 - [~] Screenshots captured *(6.9" hero shot ready in `store-screenshots/`; add gameplay shots)*
 - [x] Version 1.0.0 / build 1 set *(MARKETING_VERSION=1.0.0, CURRENT_PROJECT_VERSION=1)*
 
@@ -160,7 +160,7 @@ xcrun altool --upload-app -f build/ipa/App.ipa --type ios \
 - **Transparent/rounded 1024 icon** → we ship an opaque full-bleed icon. ✅
 - **Crashes on launch** → verified launches in Simulator. ✅
 - **Outdated privacy policy** → publish the revised `privacy.html` to
-  https://d10kns7njmuyxo.cloudfront.net/privacy.html before shipping ads. Confirm
+  https://hallsoftwaresolutions.com/dont-tap-that/privacy/ before shipping ads. Confirm
   its support email is an active, monitored inbox; the existing address is not
   verified by this repository.
 - **"App is just a website"** → this is a self-contained game (all logic bundled, works offline), not a web viewer, which satisfies guideline 4.2.

@@ -237,7 +237,7 @@ test('UI preserves celebration, passes previous best, and prevents double-tap re
       weeklyBest() { return 0; }, recordWeekly() { return false; },
       theme: 'terminal', setTheme(id) { themeWrites.push(id); }
     },
-    LeaderboardUI: { init() {}, afterWeeklyRun() {} },
+    LeaderboardUI: { init() {}, afterWeeklyRun() {}, refreshPreview() {} },
     Themes: {
       LIST: [], enabled: () => false, available: () => false, previewAll: () => false,
       apply: (id) => id || 'default', applyTrusted: (id) => { trusted.push(id); return id; },
@@ -257,6 +257,7 @@ test('UI preserves celebration, passes previous best, and prevents double-tap re
     Share: { readIncoming: () => null },
     navigator: {}, location: { protocol: 'capacitor:' }
   });
+  vm.runInContext(source('profile'), f.context);
   vm.runInContext(source('main'), f.context);
   await new Promise(resolve => setImmediate(resolve));
   assert.equal(element('purchase-status').textContent, '', 'no development ad explanation on the purchase screen');

@@ -146,9 +146,11 @@ test('buttons use sentence case and the home screen groups navigation as a list'
   assert.ok(labels.length >= 8);
   labels.forEach((label) => assert.notEqual(label, label.toUpperCase(), 'not ALL CAPS: ' + label));
   assert.match(html, /<div class="glass-list">/);
-  ['btn-how', 'btn-themes', 'btn-lb', 'btn-store'].forEach((id) =>
+  ['btn-how', 'btn-themes', 'btn-store'].forEach((id) =>
     assert.match(html, new RegExp('<button id="' + id + '" class="row')));
   assert.match(html, /<button id="btn-weekly" class="card-btn">/);
+  assert.match(html, /<button id="btn-lb" class="card-btn lb-preview/, 'the leaderboard is shown as a card, not hidden behind a row');
+  assert.match(html, /<button id="btn-name" class="player-card/, 'the player\'s name is a card at the top of the home screen');
   assert.doesNotMatch(read('css/styles.css'), /text-decoration:\s*underline/, 'no underlined web-style links');
 });
 

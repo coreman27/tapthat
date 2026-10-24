@@ -273,7 +273,7 @@ They get extra time because turning takes longer than tapping.
 
 **Privacy and the store**
 - Sensor data is read and used on the device only. Nothing is stored or sent. No App Privacy answer
-  changes (still no collection for this feature). `privacy.html` gets one sentence saying the app uses the
+  changes (still no collection for this feature). the privacy policy page on hallsoftwaresolutions.com gets one sentence saying the app uses the
   phone's orientation sensors for this command and that the data stays on the device. If the spike shows an
   Info.plist usage string is needed, it says: "Used for the compass challenge. Motion data stays on your
   device."

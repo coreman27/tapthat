@@ -16,6 +16,7 @@
     Object.keys(screens).forEach(function (k) {
       screens[k].classList.toggle('active', k === id);
     });
+    if (typeof api.onShow === 'function') api.onShow(id);
   }
 
   function toast(msg, ms) {
@@ -26,5 +27,6 @@
     toastTimer = setTimeout(function () { toastEl.classList.add('hidden'); }, ms || 2200);
   }
 
-  global.UI = { register: register, show: show, toast: toast };
+  var api = { register: register, show: show, toast: toast, onShow: null };
+  global.UI = api;
 })(window);

@@ -46,10 +46,11 @@ async function game(options = {}) {
     Weekly: { weekId: () => '2026-W40', msUntilReset: () => 1e8, resetLabel: () => '1d', isWeekId: () => true },
     Themes: { LIST: [], enabled: () => false, available: () => false, previewAll: () => false, apply: (i) => i, applyTrusted: (i) => i,
       preview: (i) => i, resolve: (i) => i, canUse: () => true, find: () => null, ownership: () => 'free' },
-    LeaderboardUI: { init() {}, afterWeeklyRun() {} },
+    LeaderboardUI: { init() {}, afterWeeklyRun() {}, refreshPreview() {} },
     navigator: {}, location: { protocol: 'capacitor:' }
   });
   vm.runInContext(source('storage'), f.context);
+  vm.runInContext(source('profile'), f.context);
   // spy on the ad policy hand-off without changing its behavior
   const realRecordLoss = f.context.Monetization.recordLoss;
   f.context.Monetization.recordLoss = (arg) => { const d = realRecordLoss(arg); calls.recordLoss.push({ arg, decision: d }); return d; };

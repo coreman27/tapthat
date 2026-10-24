@@ -2,7 +2,7 @@
 
 **Obey the command. Or don't. That's the game.**
 
-**🎮 Play live: https://d10kns7njmuyxo.cloudfront.net** (AWS S3 + CloudFront — see [`DEPLOY.md`](DEPLOY.md))
+**🎮 iPhone app:** https://apps.apple.com/app/id6806714287  ·  [App page, privacy and support](https://hallsoftwaresolutions.com/dont-tap-that/)  ·  The browser version is retired, see [`WEB_RETIREMENT.md`](WEB_RETIREMENT.md).
 
 A one-thumb, reflex + psychology game for iPhone. The screen shows a command — `TAP ME`, `DON'T TAP BLUE`, `HOLD`, `SWIPE →`, `TAP AFTER IT TURNS GREEN` — and you have about **0.7–2 seconds** to do the right thing. One mistake ends the run. Then you try again. Forever.
 
@@ -220,7 +220,7 @@ tapthat/
 │   ├── monetization.js     # native bridge, deferred ad breaks, purchase state
 │   └── main.js             # bootstrap + wiring
 ├── icons/                  # app icons (SVG + generated PNGs)
-├── manifest.webmanifest    # PWA (installable, standalone, portrait)
+├── manifest.webmanifest    # web manifest (the browser version is retired; kept for local dev)
 ├── sw.js                   # offline cache
 ├── capacitor.config.json   # native wrapper config (webDir: www)
 ├── package.json
@@ -251,7 +251,7 @@ score-aware timing is implemented; Rewarded Continue is still planned.
 
 - [x] Core loop, 17 challenge mechanics, adaptive difficulty
 - [x] Best score, instant retry, friend-challenge links
-- [x] PWA (installable + offline) and Capacitor native scaffold
+- [x] Capacitor native iOS app (the PWA / browser version is retired: see `WEB_RETIREMENT.md`)
 - [ ] Special challenge packs (optional new game modes)
 - [ ] Compass challenge: point your phone the right way, with a theme-matched dial (planned v1.2; spec in `GAME_SPEC.md` 9a, starts with a real-phone spike)
 - [x] iOS interstitial cadence and one-time Remove Ads purchase integration

@@ -76,6 +76,8 @@ html, body {
 .big-btn.ghost,
 .name-row,
 .card-btn,
+.player-card,
+.lb-join,
 .glass-list,
 .instruction,
 .score-block,
@@ -458,6 +460,51 @@ button:disabled:active { transform: none; filter: none; opacity: 0.45; }
   -webkit-backdrop-filter: var(--glass-blur); backdrop-filter: var(--glass-blur); box-shadow: var(--shadow); }
 .sheet-title { margin: 0 0 4px; font-size: 15px; color: var(--muted); }
 
+/* ---------- Player card: your name, front and center on the home screen ---------- */
+.player-card {
+  display: flex; align-items: center; gap: 14px; width: 100%; max-width: 360px;
+  padding: 12px 16px 12px 12px; border-radius: 20px; text-align: left; color: var(--fg); font: inherit; cursor: pointer;
+}
+.player-card:active { background: var(--glass-strong); }
+.avatar {
+  flex: none; width: 48px; height: 48px; border-radius: 50%; display: grid; place-items: center;
+  background: var(--accent); color: var(--on-accent); font-size: 22px; font-weight: 750; letter-spacing: -0.02em;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.28), 0 0 0 3px rgba(255, 255, 255, 0.07);
+}
+.player-card.empty .avatar { background: transparent; color: var(--link); border: 2px dashed var(--link); box-shadow: none; font-weight: 500; }
+.pc-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.pc-main strong { font-size: 21px; font-weight: 750; letter-spacing: -0.02em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.player-card.empty .pc-main strong { color: var(--link); font-size: 19px; font-weight: 650; }
+.pc-sub { font-size: 14px; color: var(--muted); }
+.pc-edit { flex: none; font-size: 15px; font-weight: 600; color: var(--link); padding: 4px 6px; }
+.player-card.empty .pc-edit { display: none; }
+.player-card.just-saved .avatar { animation: pop 0.5s cubic-bezier(.2,.9,.3,1.4); }
+.player-card.just-saved { animation: settle 0.9s ease; }
+@keyframes settle { 0% { box-shadow: inset 0 0 0 2px var(--link), var(--shadow); } 100% { box-shadow: inset 0 1px 0 var(--glass-hi), var(--shadow); } }
+
+/* ---------- Leaderboard preview on the home screen ---------- */
+.lb-preview .cb-main { display: flex; flex-direction: column; gap: 6px; }
+.lbp-list { display: flex; flex-direction: column; gap: 4px; }
+.lbp-row { display: flex; gap: 10px; align-items: baseline; font-size: 15px; font-variant-numeric: tabular-nums; }
+.lbp-row .rk { width: 1.9em; color: var(--muted); }
+.lbp-row .nm { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lbp-row .sc { font-weight: 700; }
+.lbp-row.me .nm, .lbp-row.me .sc { color: var(--link); }
+.lbp-list:empty { display: none; }
+
+/* A gentle prompt on the leaderboard screen: viewing is open, posting needs joining */
+.lb-join { display: flex; align-items: center; justify-content: space-between; gap: 10px; width: 100%; max-width: 360px; padding: 10px 14px; border-radius: 14px; font-size: 14px; color: var(--muted); text-align: left; }
+.lb-join .link-btn { font-weight: 650; padding: 4px 8px; }
+
+/* The name sheet sits near the top so the keyboard never covers it */
+.sheet.sheet-top { align-items: flex-start; padding: calc(var(--safe-t) + 70px) 16px 0; }
+.sheet-input {
+  width: 100%; height: 52px; padding: 0 14px; border-radius: 14px; border: 1px solid var(--glass-border);
+  background: var(--glass); color: var(--fg); font-size: 20px; font-weight: 650; text-align: center; outline: none;
+}
+.sheet-input:focus { border-color: var(--link); }
+.sheet-input::selection { background: var(--accent); color: var(--on-accent); }
+
 /* ---------- Fallbacks ---------- */
 /* No blur available, or the user chose Reduce Transparency: use solid panels. */
 @supports not ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))) {
@@ -467,7 +514,7 @@ button:disabled:active { transform: none; filter: none; opacity: 0.45; }
   :root { --glass: #1b1e26; --glass-strong: #272b35; --glass-blur: none; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .score-bump, .new-best, .fake-notif, #screen-game.flash-bad, #screen-game.flash-good { animation: none; }
+  .score-bump, .new-best, .fake-notif, .player-card.just-saved, .player-card.just-saved .avatar, #screen-game.flash-bad, #screen-game.flash-good { animation: none; }
   .playfield { transition: none; }
 }
 
