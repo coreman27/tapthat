@@ -300,36 +300,60 @@ test('the safety UI exists in the page: name field, rules, report sheet, contact
     assert.ok(html.includes('id="' + id + '"'), id);
   }
   assert.match(html, /Offensive names are removed/);
-  assert.match(html, /mailto:support@donttapthat\.com/);
+  assert.match(html, /mailto:support@hallsoftwaresolutions\.com/);
 });
 
 
-test('the shipped config points at an https API, and enabling it requires the privacy disclosures', () => {
+// The privacy policy and support pages are published from the company-site repo (a sibling folder
+// or $HSS_REPO). Tests that need them skip when it is not checked out.
+function companyPage(rel) {
+  const dir = process.env.HSS_REPO || path.join(__dirname, '..', '..', 'HallSoftwareSolutions');
+  const file = path.join(dir, rel);
+  return fs.existsSync(file) ? fs.readFileSync(file, 'utf8') : null;
+}
+
+test('the shipped config points at an https API, and enabling it requires the privacy disclosures', (t) => {
   const ctx = {}; ctx.window = ctx; vm.createContext(ctx);
   vm.runInContext(fs.readFileSync(path.join(__dirname, '..', 'js', 'leaderboard-config.js'), 'utf8'), ctx);
   const apiBase = ctx.LeaderboardConfig.apiBase;
   if (!apiBase) return; // feature off: nothing to disclose
   assert.match(apiBase, /^https:\/\/[a-z0-9]+\.execute-api\.[a-z0-9-]+\.amazonaws\.com$/, 'an https API Gateway URL with no trailing slash');
   const root = path.join(__dirname, '..');
-  const policy = fs.readFileSync(path.join(root, 'privacy.html'), 'utf8');
-  assert.match(policy, /Optional weekly leaderboard and friend groups/, 'the privacy policy describes the leaderboard');
-  assert.match(policy, /report/i);
-  assert.match(policy, /Delete my leaderboard data/);
   const manifest = fs.readFileSync(path.join(root, 'ios/App/App/PrivacyInfo.xcprivacy'), 'utf8');
   assert.match(manifest, /NSPrivacyCollectedDataTypeUserID/, 'the privacy manifest declares the user id / display name');
   assert.match(manifest, /NSPrivacyCollectedDataTypeGameplayContent/, '...and the scores');
   const terraform = fs.readFileSync(path.join(root, 'server/terraform/variables.tf'), 'utf8');
   assert.ok(terraform.includes('capacitor://localhost'), 'the API allows the app origin');
+  const policy = companyPage('dont-tap-that/privacy/index.html');
+  if (policy === null) { t.diagnostic('company-site repo not found: skipped the published-policy checks'); return; }
+  assert.match(policy, /weekly leaderboard and friend groups/i, 'the published privacy policy describes the leaderboard');
+  assert.match(policy, /report/i);
+  assert.match(policy, /Delete my leaderboard data/);
+  assert.match(policy, /Looking at the leaderboard/i, 'it says what simply viewing the board sends');
 });
 
-
-test('every place that tells players how to reach us uses one address, on a domain we own', () => {
+test('every place that tells players how to reach us uses one address', () => {
   const root = path.join(__dirname, '..');
-  const files = ['index.html', 'privacy.html', 'server/README.md'];
-  const found = new Set();
-  for (const f of files) {
-    const text = fs.readFileSync(path.join(root, f), 'utf8');
-    for (const m of text.matchAll(/[A-Za-z0-9._-]+@[A-Za-z0-9.-]+\.[a-z]{2,}/g)) found.add(m[0]);
+  const texts = ['index.html', 'server/README.md'].map((f) => fs.readFileSync(path.join(root, f), 'utf8'));
+  for (const rel of ['dont-tap-that/index.html', 'dont-tap-that/privacy/index.html', 'dont-tap-that/support/index.html']) {
+    const page = companyPage(rel);
+    if (page !== null) texts.push(page);
   }
-  assert.deepEqual([...found], ['support@donttapthat.com'], 'one contact address everywhere (tapthat.game is not a real domain)');
+  const found = new Set();
+  for (const text of texts) for (const m of text.matchAll(/[A-Za-z0-9._-]+@[A-Za-z0-9.-]+\.[a-z]{2,}/g)) found.add(m[0]);
+  assert.deepEqual([...found], ['support@hallsoftwaresolutions.com'], 'one contact address everywhere');
+});
+
+test('the in-app policy links go to the live company page, and nothing shipped mentions the retired web version', () => {
+  const root = path.join(__dirname, '..');
+  const html = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
+  const links = [...html.matchAll(/href="([^"]*privacy[^"]*)"/g)].map((m) => m[1]);
+  assert.ok(links.length >= 2, 'the join screen and the purchase screen both link to the policy');
+  links.forEach((l) => assert.equal(l, 'https://hallsoftwaresolutions.com/dont-tap-that/privacy/'));
+  assert.equal(fs.existsSync(path.join(root, 'privacy.html')), false, 'no stale bundled copy of the policy');
+  const shipped = ['index.html', 'manifest.webmanifest', 'sw.js', ...fs.readdirSync(path.join(root, 'js')).map((f) => 'js/' + f)];
+  for (const rel of shipped) {
+    const text = fs.readFileSync(path.join(root, rel), 'utf8');
+    assert.doesNotMatch(text, /donttapthat\.com|cloudfront\.net/, rel + ' must not reference the retired web version');
+  }
 });

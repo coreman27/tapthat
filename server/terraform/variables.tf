@@ -9,8 +9,6 @@ variable "allowed_origins" {
   type        = list(string)
   default = [
     "capacitor://localhost",
-    "https://donttapthat.com",
-    "https://d10kns7njmuyxo.cloudfront.net",
   ]
 }
 

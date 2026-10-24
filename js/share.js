@@ -26,15 +26,12 @@
     }
   }
 
-  // Temporary web home for challenge links (branded domain). Used for the web
-  // build and as a fallback on native until the App Store Apple ID is set below.
-  var PUBLIC_BASE = 'https://donttapthat.com/';
-
   // ===== App Store link =====
   // The native app should send friends to the App Store, NOT the web build.
   // Paste your app's numeric Apple ID here (App Store Connect ▸ your app ▸
   // App Information ▸ "Apple ID", e.g. '6480001234'). Leave '' until you have it.
   var APP_STORE_APPLE_ID = '6806714287';
+  var SUPPORT_PAGE = 'https://hallsoftwaresolutions.com/dont-tap-that/';
 
   function appStoreUrl() {
     return APP_STORE_APPLE_ID ? ('https://apps.apple.com/app/id' + APP_STORE_APPLE_ID) : '';
@@ -45,7 +42,9 @@
     if (proto === 'http:' || proto === 'https:') {
       return location.origin + location.pathname;
     }
-    return PUBLIC_BASE;
+    // The web version is retired: links point at the App Store (the page cannot carry the
+    // challenge payload there, so the name and score travel in the message text).
+    return appStoreUrl() || SUPPORT_PAGE;
   }
 
   function buildUrl(name, score, weekId) {
@@ -135,7 +134,7 @@
   // Generic text share (e.g. a friend-group invite). Native sends friends to the App Store.
   function shareText(text) {
     var sharePlugin = getSharePlugin();
-    var url = sharePlugin ? (appStoreUrl() || PUBLIC_BASE) : shareBase();
+    var url = sharePlugin ? (appStoreUrl() || SUPPORT_PAGE) : shareBase();
     var payload = { title: 'DON\u2019T TAP THAT', text: text, url: url };
     if (sharePlugin) {
       return sharePlugin.share(Object.assign({ dialogTitle: 'Invite friends' }, payload))
