@@ -52,7 +52,7 @@ Anyone can pick a display name, so the leaderboard has the protections Apple req
 - **Rows never expose device ids.** Each row has a 12-character one-way `ref`, which is all that is
   needed to report or hide someone.
 - **Rules and contact:** the join screen states the rules, and the leaderboard has *Report a problem*
-  (support@tapthat.game). Hidden players stay hidden in every week and when they post again.
+  (support@donttapthat.com). Hidden players stay hidden in every week and when they post again.
 - **You review and act:** `tools/moderate.js` (below). A banned device can no longer post or join groups
   but can still delete its own data. A ban is advisory: someone who reinstalls gets a new anonymous id.
 
@@ -67,7 +67,7 @@ AWS_PROFILE=corey node tools/moderate.js restore <ref> [--unban]   # undo
 ```
 
 Apple expects timely responses to reports, so check `reports` regularly (daily for the first weeks),
-and respond to emails sent to support@tapthat.game. There is no admin endpoint on the internet.
+and respond to emails sent to support@donttapthat.com. There is no admin endpoint on the internet.
 
 ## Verifying a deployment
 
