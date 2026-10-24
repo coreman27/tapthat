@@ -22,6 +22,7 @@ const DAY_S = 24 * 60 * 60;
 const SCORE_TTL_DAYS = 70;
 const GROUP_TTL_DAYS = 365;
 const REPORT_TTL_DAYS = 180;
+const DEVICE_TTL_DAYS = 400; // a device's key record outlives its scores, and is refreshed whenever it posts
 const MAX_TS = 9999999999999;
 // DynamoDB reserved words (hidden, name, ttl, ...) are rejected when used bare in an expression,
 // so every non-key attribute in an expression goes through an alias.
@@ -85,7 +86,7 @@ function createDynamoStore({ doc, cmd, table, now, sleep }) {
       try {
         await doc.send(new cmd.PutCommand({
           TableName: table,
-          Item: { pk, sk: 'KEY', keyHash },
+          Item: { pk, sk: 'KEY', keyHash, ttl: ttlFrom(clock(), DEVICE_TTL_DAYS) },
           ConditionExpression: 'attribute_not_exists(pk)'
         }));
         return true; // first time this device id is seen
@@ -108,6 +109,16 @@ function createDynamoStore({ doc, cmd, table, now, sleep }) {
         ReturnValues: 'ALL_NEW'
       }));
       const hidden = !!(known.Attributes && known.Attributes.hidden);
+      // Keep the device's key record alive while it is active (only if it exists: never create a bare one).
+      try {
+        await doc.send(new cmd.UpdateCommand({
+          TableName: table, Key: { pk: 'D#' + deviceId, sk: 'KEY' },
+          UpdateExpression: 'SET #t = :t', ConditionExpression: 'attribute_exists(pk)',
+          ExpressionAttributeNames: { '#t': 'ttl' }, ExpressionAttributeValues: { ':t': ttlFrom(ts, DEVICE_TTL_DAYS) }
+        }));
+      } catch (e) {
+        if (!isConditionFailure(e)) throw e;
+      }
       try {
         const item = {
           pk, sk, name, score, ts, ref,
@@ -319,4 +330,4 @@ function createDynamoStore({ doc, cmd, table, now, sleep }) {
   };
 }
 
-module.exports = { createDynamoStore, scoreSortKey, SCORE_TTL_DAYS, GROUP_TTL_DAYS, REPORT_TTL_DAYS };
+module.exports = { createDynamoStore, scoreSortKey, SCORE_TTL_DAYS, GROUP_TTL_DAYS, REPORT_TTL_DAYS, DEVICE_TTL_DAYS };

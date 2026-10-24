@@ -123,6 +123,7 @@ function createFakeDynamo(table) {
         const names = input.ExpressionAttributeNames || {};
         const vals = input.ExpressionAttributeValues || {};
         let it = items.get(k(input.Key));
+        if (input.ConditionExpression === 'attribute_exists(pk)' && !it) throw conditionError();
         if (!it) { it = { ...input.Key }; items.set(k(input.Key), it); }
         for (const part of m[1].split(',')) {
           const [lhs, rhs] = part.split('=').map((x) => x.trim());

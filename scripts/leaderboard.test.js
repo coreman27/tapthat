@@ -51,7 +51,7 @@ function phone(server, opts) {
   vm.createContext(ctx);
   ['storage', 'leaderboard-config', 'weekly', 'leaderboard', 'leaderboard-ui'].forEach((n) =>
     vm.runInContext(fs.readFileSync(path.join(__dirname, '..', 'js', n + '.js'), 'utf8'), ctx, { filename: n + '.js' }));
-  if (opts.apiBase !== null) ctx.LeaderboardConfig.apiBase = opts.apiBase === undefined ? API : opts.apiBase;
+  ctx.LeaderboardConfig.apiBase = opts.apiBase === null ? '' : (opts.apiBase === undefined ? API : opts.apiBase);
   return { ctx, lb: ctx.Leaderboard, Store: ctx.Store, log, state, storage };
 }
 
@@ -301,4 +301,23 @@ test('the safety UI exists in the page: name field, rules, report sheet, contact
   }
   assert.match(html, /Offensive names are removed/);
   assert.match(html, /mailto:support@tapthat\.game/);
+});
+
+
+test('the shipped config points at an https API, and enabling it requires the privacy disclosures', () => {
+  const ctx = {}; ctx.window = ctx; vm.createContext(ctx);
+  vm.runInContext(fs.readFileSync(path.join(__dirname, '..', 'js', 'leaderboard-config.js'), 'utf8'), ctx);
+  const apiBase = ctx.LeaderboardConfig.apiBase;
+  if (!apiBase) return; // feature off: nothing to disclose
+  assert.match(apiBase, /^https:\/\/[a-z0-9]+\.execute-api\.[a-z0-9-]+\.amazonaws\.com$/, 'an https API Gateway URL with no trailing slash');
+  const root = path.join(__dirname, '..');
+  const policy = fs.readFileSync(path.join(root, 'privacy.html'), 'utf8');
+  assert.match(policy, /Optional weekly leaderboard and friend groups/, 'the privacy policy describes the leaderboard');
+  assert.match(policy, /report/i);
+  assert.match(policy, /Delete my leaderboard data/);
+  const manifest = fs.readFileSync(path.join(root, 'ios/App/App/PrivacyInfo.xcprivacy'), 'utf8');
+  assert.match(manifest, /NSPrivacyCollectedDataTypeUserID/, 'the privacy manifest declares the user id / display name');
+  assert.match(manifest, /NSPrivacyCollectedDataTypeGameplayContent/, '...and the scores');
+  const terraform = fs.readFileSync(path.join(root, 'server/terraform/variables.tf'), 'utf8');
+  assert.ok(terraform.includes('capacitor://localhost'), 'the API allows the app origin');
 });

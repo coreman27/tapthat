@@ -194,6 +194,21 @@ test('[dynamo] batch retries actually happened and nothing was dropped', async (
   assert.equal([...fake.items.values()].some((i) => i.gsi2pk === 'D#m0' || i.pk === 'D#m0'), false);
 });
 
+test('[dynamo] a device key record expires, is refreshed by activity, and is never created bare', async () => {
+  const fake = createFakeDynamo('tbl');
+  const store = createDynamoStore({ doc: fake.doc, cmd: fake.cmd, table: 'tbl', now: () => 1000, sleep: async () => {} });
+  const DAY = 24 * 3600;
+  await store.putScore({ weekId: '2026-W40', deviceId: 'ghost', name: 'G', score: 3, ts: 5000, ref: 'ref-ghost' });
+  assert.equal(fake.items.has('D#ghost|KEY'), false, 'posting without ever authenticating does not invent a key record');
+  await store.authDevice('dev', 'hash');
+  const created = fake.items.get('D#dev|KEY').ttl;
+  assert.ok(created >= 399 * DAY && created <= 401 * DAY, 'about 400 days from creation');
+  const later = 200 * DAY * 1000;
+  await store.putScore({ weekId: '2026-W40', deviceId: 'dev', name: 'D', score: 4, ts: later, ref: 'ref-dev' });
+  assert.ok(fake.items.get('D#dev|KEY').ttl > created + 190 * DAY, 'an active device keeps its key record');
+  assert.equal(fake.items.get('D#dev|KEY').keyHash, 'hash', 'the key hash is untouched');
+});
+
 test('[dynamo] items get a ttl so old data expires', async () => {
   const fake = createFakeDynamo('tbl');
   const store = createDynamoStore({ doc: fake.doc, cmd: fake.cmd, table: 'tbl', now: () => 1000, sleep: async () => {} });

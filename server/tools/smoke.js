@@ -20,6 +20,8 @@ if (!/^https:\/\//.test(base) && !/^http:\/\/(127\.0\.0\.1|localhost)(:\d+)?$/.t
 const deviceId = crypto.randomUUID();
 const deviceKey = crypto.randomBytes(32).toString('base64url');
 const me = { deviceId, deviceKey };
+const newPlayer = () => ({ deviceId: crypto.randomUUID(), deviceKey: crypto.randomBytes(32).toString('base64url') });
+const reporters = [newPlayer(), newPlayer(), newPlayer()];
 const week = weekly().weekId(Date.now());
 const SCORE = 8;
 const rounds = sequence(week, SCORE).map((r) => (r.timeoutResult === 'success' ? r.limit : 320));
@@ -86,10 +88,25 @@ async function call(method, path, body, query, extraHeaders) {
     const selfReport = await call('POST', '/v1/report', { ...me, ref: myRef });
     check(selfReport.status === 400, 'you cannot report yourself', 'got ' + selfReport.status);
 
-    const other = await call('POST', '/v1/report', { deviceId: crypto.randomUUID(), deviceKey: crypto.randomBytes(32).toString('base64url'), ref: myRef });
-    check(other.status === 200, 'another player can report an entry (one report does not hide it)', 'got ' + other.status);
-    const stillThere = await call('GET', `/v1/weeks/${week}/leaderboard`);
-    check((stillThere.body.entries || []).some((e) => e.ref === myRef), 'one report alone does not hide the entry');
+    const first = await call('POST', '/v1/report', { ...reporters[0], ref: myRef, reason: 'name', weekId: week });
+    check(first.status === 200, 'another player can report an entry', 'got ' + first.status);
+    const again = await call('POST', '/v1/report', { ...reporters[0], ref: myRef });
+    check(again.status === 200, 'the same player reporting again is accepted but counts once');
+    const afterOne = await call('GET', `/v1/weeks/${week}/leaderboard`);
+    check((afterOne.body.entries || []).some((e) => e.ref === myRef), 'one reporter alone does not hide the entry');
+
+    await call('POST', '/v1/report', { ...reporters[1], ref: myRef });
+    const afterTwo = await call('GET', `/v1/weeks/${week}/leaderboard`);
+    check((afterTwo.body.entries || []).some((e) => e.ref === myRef), 'two reporters do not hide it yet');
+
+    await call('POST', '/v1/report', { ...reporters[2], ref: myRef });
+    const afterThree = await call('GET', `/v1/weeks/${week}/leaderboard`);
+    check(!(afterThree.body.entries || []).some((e) => e.ref === myRef), 'three different reporters hide the entry for everyone');
+    const groupAfter = group.body.code ? await call('GET', `/v1/groups/${group.body.code}/weeks/${week}`) : { body: {} };
+    check(!(groupAfter.body.entries || []).some((e) => e.ref === myRef), 'it is hidden on the friend group board too');
+    const repost = await call('POST', '/v1/scores', { ...me, name: 'Smoke Test', weekId: week, score: SCORE + 1, rounds: sequence(week, SCORE + 1).map((r) => (r.timeoutResult === 'success' ? r.limit : 320)) });
+    const afterRepost = await call('GET', `/v1/weeks/${week}/leaderboard`);
+    check(repost.status === 200 && !(afterRepost.body.entries || []).some((e) => e.ref === myRef), 'a hidden player stays hidden when they post again');
 
     const thief = await call('POST', '/v1/scores', { deviceId, deviceKey: crypto.randomBytes(32).toString('base64url'), name: 'x', weekId: week, score: SCORE, rounds });
     check(thief.status === 401, 'someone else cannot post as this device', 'got ' + thief.status);
@@ -97,6 +114,7 @@ async function call(method, path, body, query, extraHeaders) {
     failures++;
     console.log('  FAIL unexpected error: ' + error.message);
   } finally {
+    for (const r of reporters) await call('POST', '/v1/delete', r).catch(() => null);
     const del = await call('POST', '/v1/delete', me).catch(() => ({ status: 0 }));
     check(del.status === 200, 'cleanup: the test player and its data are deleted', 'got ' + del.status);
     const after = await call('GET', `/v1/weeks/${week}/leaderboard`).catch(() => ({ body: {} }));
