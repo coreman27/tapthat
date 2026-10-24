@@ -156,7 +156,12 @@
       <div class="home-inner store-inner">
         <h2 class="chal-title">Weekly leaderboard</h2>
         <p class="tagline">Compete with other players on the same weekly commands.</p>
-        <p class="purchase-status" id="lb-privacy-copy">If you join, your display name, your weekly score and a random anonymous ID are sent to our server and shown to other players. No account, no email, no tracking. Delete it all anytime from the leaderboard screen.</p>
+        <div class="name-row">
+          <label for="lb-name-input">Show me as</label>
+          <input id="lb-name-input" type="text" maxlength="14" placeholder="Pick a name" autocomplete="off" spellcheck="false" />
+        </div>
+        <p class="purchase-status" id="lb-privacy-copy">Other players will see this name and your weekly score, along with a random anonymous ID that is not linked to you. No account, no email, no tracking. Please don't use your real name. You can delete everything anytime from the leaderboard screen.</p>
+        <p class="purchase-status" id="lb-rules-copy">Keep names friendly. Offensive names are removed and repeat offenders are blocked. You can report or hide any name.</p>
         <button id="btn-lb-join" class="big-btn primary">Join</button>
         <button id="btn-lb-nothanks" class="link-btn">Not now</button>
         <a class="link-btn" href="privacy.html">Privacy Policy</a>
@@ -173,6 +178,7 @@
         </div>
         <ol id="lb-list" class="lb-list"></ol>
         <p id="lb-status" class="purchase-status" role="status"></p>
+        <p id="lb-hidden-note" class="purchase-status hidden"><span id="lb-hidden-count">0</span> hidden · <button id="btn-lb-unhide" class="link-btn">Show all</button></p>
         <div id="lb-friends" class="lb-friends hidden">
           <p id="lb-group-code" class="weekly-line"></p>
           <button id="btn-lb-share-code" class="link-btn hidden">Share this group</button>
@@ -184,6 +190,15 @@
         </div>
         <button id="btn-lb-back" class="big-btn ghost">Back</button>
         <button id="btn-lb-delete" class="link-btn">Delete my leaderboard data</button>
+        <a id="lb-contact" class="link-btn" href="mailto:support@tapthat.game?subject=DON%27T%20TAP%20THAT%20leaderboard">Report a problem</a>
+      </div>
+      <div id="lb-sheet" class="sheet hidden" role="dialog" aria-modal="true" aria-labelledby="lb-sheet-title">
+        <div class="sheet-card">
+          <p id="lb-sheet-title" class="sheet-title">Player</p>
+          <button id="btn-sheet-report" class="big-btn ghost">Report this name</button>
+          <button id="btn-sheet-hide" class="big-btn ghost">Hide this player</button>
+          <button id="btn-sheet-cancel" class="link-btn">Cancel</button>
+        </div>
       </div>
     </section>
 

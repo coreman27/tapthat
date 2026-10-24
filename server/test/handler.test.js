@@ -1,7 +1,7 @@
 'use strict';
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { createHandler, GROUP_MAX_MEMBERS } = require('../src/handler');
+const { createHandler, GROUP_MAX_MEMBERS, REPORT_HIDE_THRESHOLD, refOf } = require('../src/handler');
 const { createMemoryStore } = require('../src/store-memory');
 const { validRounds, identity, event } = require('./helpers');
 
@@ -186,4 +186,83 @@ test('unexpected store failures return a generic 500 without leaking details', a
   const res = await handler(event('POST', '/v1/scores', { ...identity('x'), weekId: WEEK, score: 5, rounds: validRounds(WEEK, 5) }));
   assert.equal(res.statusCode, 500);
   assert.equal(res.body.includes('secret'), false);
+});
+
+
+// ---- reporting, hiding and bans (user-generated-content safety) ----
+const report = (s, who, ref, extra) => s.call('POST', '/v1/report', { ...identity(who), ref, ...(extra || {}) });
+const names = async (s) => (await s.call('GET', `/v1/weeks/${WEEK}/leaderboard`)).body.entries.map((e) => e.name);
+
+test('leaderboard rows carry an opaque ref, never a device id; it is stable and one-way', async () => {
+  const s = setup();
+  await submit(s, 'alice', 'Alice', 20);
+  const board = (await s.call('GET', `/v1/weeks/${WEEK}/leaderboard`, undefined, { deviceId: identity('alice').deviceId })).body;
+  const ref = board.entries[0].ref;
+  assert.match(ref, /^[0-9a-f]{12}$/);
+  assert.equal(ref, refOf(identity('alice').deviceId));
+  assert.equal(board.you.ref, ref);
+  assert.equal(JSON.stringify(board).includes(identity('alice').deviceId), false);
+  assert.notEqual(refOf(identity('bob').deviceId), ref);
+});
+
+test('three different reporters hide an entry automatically; fewer do not', async () => {
+  const s = setup();
+  await submit(s, 'rude', 'Rude', 50);
+  await submit(s, 'fine', 'Fine', 10);
+  const ref = refOf(identity('rude').deviceId);
+  assert.equal(REPORT_HIDE_THRESHOLD, 3);
+  assert.equal((await report(s, 'r1', ref)).status, 200);
+  assert.equal((await report(s, 'r2', ref)).status, 200);
+  assert.deepEqual(await names(s), ['Rude', 'Fine'], 'two reports are not enough');
+  assert.equal((await report(s, 'r3', ref)).status, 200);
+  assert.deepEqual(await names(s), ['Fine'], 'the third distinct reporter hides it');
+  const total = (await s.call('GET', `/v1/weeks/${WEEK}/leaderboard`)).body.total;
+  assert.equal(total, 1);
+});
+
+test('one reporter filing repeatedly counts once', async () => {
+  const s = setup();
+  await submit(s, 'rude', 'Rude', 50);
+  const ref = refOf(identity('rude').deviceId);
+  for (let i = 0; i < 6; i++) assert.equal((await report(s, 'spammer', ref)).status, 200);
+  assert.deepEqual(await names(s), ['Rude'], 'a single reporter cannot hide someone alone');
+});
+
+test('report validation: identity, ref format, self-reports, unknown entries, reasons', async () => {
+  const s = setup();
+  await submit(s, 'rude', 'Rude', 50);
+  const ref = refOf(identity('rude').deviceId);
+  assert.equal((await s.call('POST', '/v1/report', { ref })).status, 400, 'needs identity');
+  assert.equal((await s.call('POST', '/v1/report', { ...identity('x'), ref: 'nope' })).status, 400);
+  assert.equal((await s.call('POST', '/v1/report', { ...identity('x'), ref: 'A'.repeat(12) })).status, 400, 'uppercase is not a ref');
+  assert.equal((await report(s, 'rude', ref)).body.error, 'self_report');
+  assert.equal((await report(s, 'x', 'abcdef012345')).status, 404, 'unknown entry');
+  assert.equal((await report(s, 'x', ref, { reason: 'something-made-up', weekId: 'garbage' })).status, 200, 'bad reason/week fall back safely');
+  const thief = await s.call('POST', '/v1/report', { deviceId: identity('x').deviceId, deviceKey: identity('eve').deviceKey, ref });
+  assert.equal(thief.status, 401, 'cannot report with someone else\'s device id');
+});
+
+test('a hidden player stays hidden when they post again, and their friend-group row is hidden too', async () => {
+  const s = setup();
+  const code = (await s.call('POST', '/v1/groups', { ...identity('host'), name: 'Host' })).body.code;
+  await s.call('POST', `/v1/groups/${code}/join`, { ...identity('rude'), name: 'Rude' });
+  await submit(s, 'host', 'Host', 10);
+  await submit(s, 'rude', 'Rude', 30);
+  const ref = refOf(identity('rude').deviceId);
+  for (const who of ['a', 'b', 'c']) await report(s, who, ref);
+  assert.deepEqual((await s.call('GET', `/v1/groups/${code}/weeks/${WEEK}`)).body.entries.map((e) => e.name), ['Host']);
+  await submit(s, 'rude', 'Rude', 45); // posts a better score after being hidden
+  assert.deepEqual(await names(s), ['Host']);
+});
+
+test('banned devices cannot post, create or join groups, but can still delete their data', async () => {
+  const s = setup();
+  const code = (await s.call('POST', '/v1/groups', { ...identity('host'), name: 'Host' })).body.code;
+  await submit(s, 'bad', 'Bad', 5);
+  await s.store.banDevice(identity('bad').deviceId);
+  assert.equal((await submit(s, 'bad', 'Bad', 9)).status, 403);
+  assert.equal((await s.call('POST', '/v1/groups', { ...identity('bad'), name: 'Bad' })).status, 403);
+  assert.equal((await s.call('POST', `/v1/groups/${code}/join`, { ...identity('bad'), name: 'Bad' })).status, 403);
+  assert.equal((await s.call('POST', '/v1/delete', identity('bad'))).status, 200, 'privacy: deletion is always allowed');
+  assert.equal((await submit(s, 'good', 'Good', 5)).status, 200, 'other players are unaffected');
 });

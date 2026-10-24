@@ -6,11 +6,18 @@ const { createMemoryStore } = require('../src/store-memory');
 const { createDynamoStore } = require('../src/store-dynamo');
 const { createFakeDynamo } = require('./fake-dynamo');
 
+// Callers always supply the public ref; tests default it from the device id.
+function withRefs(store) {
+  const raw = store.putScore.bind(store);
+  store.putScore = (args) => raw({ ref: 'ref-' + args.deviceId, ...args });
+  return store;
+}
+
 const impls = {
-  memory: () => ({ store: createMemoryStore() }),
+  memory: () => ({ store: withRefs(createMemoryStore()) }),
   dynamo: () => {
     const fake = createFakeDynamo('tbl');
-    return { store: createDynamoStore({ doc: fake.doc, cmd: fake.cmd, table: 'tbl', now: () => 1000, sleep: async () => {} }), fake };
+    return { store: withRefs(createDynamoStore({ doc: fake.doc, cmd: fake.cmd, table: 'tbl', now: () => 1000, sleep: async () => {} })), fake };
   }
 };
 
@@ -30,7 +37,7 @@ for (const [label, make] of Object.entries(impls)) {
     assert.deepEqual(await store.putScore({ weekId: W, deviceId: 'a', name: 'A', score: 7, ts: 2 }), { improved: false, best: 10 });
     assert.deepEqual(await store.putScore({ weekId: W, deviceId: 'a', name: 'A', score: 10, ts: 3 }), { improved: false, best: 10 });
     assert.deepEqual(await store.putScore({ weekId: W, deviceId: 'a', name: 'A', score: 12, ts: 4 }), { improved: true, best: 12 });
-    assert.deepEqual(await store.getScore(W, 'a'), { name: 'A', score: 12 });
+    assert.deepEqual(await store.getScore(W, 'a'), { name: 'A', score: 12, ref: 'ref-a' });
     assert.equal(await store.getScore(W, 'nobody'), null);
     assert.equal(await store.countScores(W), 1);
   });
@@ -38,7 +45,7 @@ for (const [label, make] of Object.entries(impls)) {
   t('a renamed device keeps its score but shows the new name', async ({ store }) => {
     await store.putScore({ weekId: W, deviceId: 'a', name: 'Old', score: 10, ts: 1 });
     await store.putScore({ weekId: W, deviceId: 'a', name: 'New', score: 5, ts: 2 });
-    assert.deepEqual(await store.getScore(W, 'a'), { name: 'New', score: 10 });
+    assert.deepEqual(await store.getScore(W, 'a'), { name: 'New', score: 10, ref: 'ref-a' });
   });
 
   t('top scores: best first, earlier submission wins ties, limit respected', async ({ store }) => {
@@ -87,8 +94,73 @@ for (const [label, make] of Object.entries(impls)) {
     await store.putScore({ weekId: W, deviceId: 'outsider', name: 'Out', score: 99, ts: 1 });
     // g3 has no score; four members spans multiple batches/pages in the dynamo fake
     assert.deepEqual(await store.groupScores('ABC234', W), [
-      { name: 'G2', score: 18 }, { name: 'G1', score: 18 }, { name: 'Host', score: 12 }
+      { name: 'G2', score: 18, ref: 'ref-g2' }, { name: 'G1', score: 18, ref: 'ref-g1' }, { name: 'Host', score: 12, ref: 'ref-h' }
     ]);
+  });
+
+  t('hidden entries disappear from boards, counts, ranks and group boards, in every week', async ({ store }) => {
+    await store.putScore({ weekId: W, deviceId: 'bad', name: 'Rude', score: 90, ts: 1 });
+    await store.putScore({ weekId: '2026-W41', deviceId: 'bad', name: 'Rude', score: 80, ts: 1 });
+    await store.putScore({ weekId: W, deviceId: 'ok', name: 'Fine', score: 20, ts: 2 });
+    await store.createGroup({ code: 'GRP333', owner: 'ok', createdAt: 1 });
+    await store.addMember({ code: 'GRP333', deviceId: 'bad', name: 'Rude', joinedAt: 1 });
+    await store.addMember({ code: 'GRP333', deviceId: 'ok', name: 'Fine', joinedAt: 1 });
+    assert.equal((await store.topScores(W, 5))[0].name, 'Rude');
+    assert.equal(await store.hideRef('ref-bad'), true);
+    assert.deepEqual((await store.topScores(W, 5)).map((e) => e.name), ['Fine']);
+    assert.equal((await store.topScores('2026-W41', 5)).length, 0, 'hidden in other weeks too');
+    assert.equal(await store.countScores(W), 1);
+    assert.equal(await store.rankOf(W, 20), 1, 'a hidden higher score does not push others down');
+    assert.deepEqual((await store.groupScores('GRP333', W)).map((e) => e.name), ['Fine']);
+    assert.deepEqual(await store.getRefInfo('ref-bad'), { name: 'Rude', hidden: true });
+    assert.equal(await store.hideRef('ref-unknown'), false);
+  });
+
+  t('a hidden player stays hidden when they post again', async ({ store }) => {
+    await store.putScore({ weekId: W, deviceId: 'bad', name: 'Rude', score: 30, ts: 1 });
+    await store.hideRef('ref-bad');
+    await store.putScore({ weekId: W, deviceId: 'bad', name: 'Rude', score: 99, ts: 2 }); // improves
+    await store.putScore({ weekId: '2026-W42', deviceId: 'bad', name: 'Rude', score: 5, ts: 3 }); // new week
+    assert.equal((await store.topScores(W, 5)).length, 0);
+    assert.equal((await store.topScores('2026-W42', 5)).length, 0);
+    assert.equal(await store.countScores(W), 0);
+  });
+
+  t('hiding many top entries still leaves a full page of visible ones', async ({ store }) => {
+    for (let i = 0; i < 15; i++) await store.putScore({ weekId: W, deviceId: 'p' + i, name: 'P' + i, score: 100 - i, ts: i });
+    for (let i = 0; i < 12; i++) await store.hideRef('ref-p' + i);
+    const top = await store.topScores(W, 3);
+    assert.deepEqual(top.map((e) => e.name), ['P12', 'P13', 'P14'], 'filtering after the page limit must not shorten the board');
+    assert.equal(await store.countScores(W), 3);
+    assert.equal(await store.rankOf(W, 88), 1, 'the best visible score ranks first');
+    assert.equal(await store.rankOf(W, 86), 3, 'hidden higher scores do not count');
+  });
+
+  t('reports count distinct reporters once each', async ({ store }) => {
+    await store.putScore({ weekId: W, deviceId: 't', name: 'Target', score: 10, ts: 1 });
+    const r = (who, ts) => store.addReport({ ref: 'ref-t', reporterRef: 'rr-' + who, reporterDevice: who, reason: 'name', weekId: W, ts });
+    assert.deepEqual(await r('x', 1), { added: true, count: 1 });
+    assert.deepEqual(await r('x', 2), { added: false, count: 1 }, 'the same reporter cannot report twice');
+    assert.deepEqual(await r('y', 3), { added: true, count: 2 });
+    assert.equal((await store.getRefInfo('ref-t')).hidden, false, 'reporting alone does not hide');
+  });
+
+  t('bans are remembered per device', async ({ store }) => {
+    await store.authDevice('b', 'k');
+    assert.equal(await store.isBanned('b'), false);
+    await store.banDevice('b');
+    assert.equal(await store.isBanned('b'), true);
+    assert.equal(await store.isBanned('someone-else'), false);
+  });
+
+  t('deleting a device removes its public ref and the reports it filed', async ({ store }) => {
+    await store.putScore({ weekId: W, deviceId: 'a', name: 'A', score: 10, ts: 1 });
+    await store.putScore({ weekId: W, deviceId: 't', name: 'Target', score: 20, ts: 2 });
+    await store.addReport({ ref: 'ref-t', reporterRef: 'ref-a', reporterDevice: 'a', reason: 'name', weekId: W, ts: 3 });
+    await store.deleteDevice('a');
+    assert.equal(await store.getRefInfo('ref-a'), null, 'the ref mapping is gone with the data');
+    const again = await store.addReport({ ref: 'ref-t', reporterRef: 'ref-b', reporterDevice: 'b', reason: 'name', weekId: W, ts: 4 });
+    assert.equal(again.count, 1, "the deleted device's report no longer counts");
   });
 
   t('delete removes a device\'s scores, memberships and key — and nobody else\'s', async ({ store }) => {
@@ -102,7 +174,7 @@ for (const [label, make] of Object.entries(impls)) {
     await store.deleteDevice('gone');
     for (let i = 0; i < 6; i++) assert.equal(await store.getScore('2026-W' + String(30 + i), 'gone'), null);
     assert.deepEqual((await store.listMembers('GRP222')).map((m) => m.deviceId), ['stay']);
-    assert.deepEqual(await store.getScore(W, 'stay'), { name: 'stay', score: 9 });
+    assert.deepEqual(await store.getScore(W, 'stay'), { name: 'stay', score: 9, ref: 'ref-stay' });
     assert.equal(await store.authDevice('gone', 'a-new-key'), true, 'device id is free again after deletion');
     assert.equal(await store.authDevice('stay', 'k2'), true);
   });

@@ -11,6 +11,8 @@
  *   Score    W#<weekId>    / S#<deviceId>   name, score, ts          gsi1: score order, gsi2: device
  *   Group    G#<code>      / META           createdAt                (no owner id is stored)
  *   Member   G#<code>      / M#<deviceId>   name, joinedAt           gsi2: device
+ *   Ref      RF#<ref>      / DEV            deviceId, name, hidden   public opaque id -> device (moderation)
+ *   Report   R#<ref>       / <reporterRef>  reason, weekId, ts       gsi2: reporting device (so delete removes it)
  *
  * `doc` is a DynamoDBDocumentClient and `cmd` the lib-dynamodb command classes; both are
  * injected so the same code runs against the real SDK (Lambda) and the test fake.
@@ -19,6 +21,7 @@
 const DAY_S = 24 * 60 * 60;
 const SCORE_TTL_DAYS = 70;
 const GROUP_TTL_DAYS = 365;
+const REPORT_TTL_DAYS = 180;
 const MAX_TS = 9999999999999;
 
 const pad = (n, width) => String(n).padStart(width, '0');
@@ -90,18 +93,29 @@ function createDynamoStore({ doc, cmd, table, now, sleep }) {
       return !!out.Item && out.Item.keyHash === keyHash;
     },
 
-    async putScore({ weekId, deviceId, name, score, ts }) {
+    async putScore({ weekId, deviceId, name, score, ts, ref }) {
       const pk = 'W#' + weekId;
       const sk = 'S#' + deviceId;
+      // Remember which device owns this public ref (for moderation) and whether it is hidden.
+      const known = await doc.send(new cmd.UpdateCommand({
+        TableName: table, Key: { pk: 'RF#' + ref, sk: 'DEV' },
+        UpdateExpression: 'SET deviceId = :d, #n = :n, gsi2pk = :g, gsi2sk = :gs, #t = :t',
+        ExpressionAttributeNames: { '#n': 'name', '#t': 'ttl' },
+        ExpressionAttributeValues: { ':d': deviceId, ':n': name, ':g': 'D#' + deviceId, ':gs': 'RF#' + ref, ':t': ttlFrom(ts, SCORE_TTL_DAYS) },
+        ReturnValues: 'ALL_NEW'
+      }));
+      const hidden = !!(known.Attributes && known.Attributes.hidden);
       try {
+        const item = {
+          pk, sk, name, score, ts, ref,
+          gsi1pk: pk, gsi1sk: scoreSortKey(score, ts),
+          gsi2pk: 'D#' + deviceId, gsi2sk: 'S#' + weekId,
+          ttl: ttlFrom(ts, SCORE_TTL_DAYS)
+        };
+        if (hidden) item.hidden = true;
         await doc.send(new cmd.PutCommand({
           TableName: table,
-          Item: {
-            pk, sk, name, score, ts,
-            gsi1pk: pk, gsi1sk: scoreSortKey(score, ts),
-            gsi2pk: 'D#' + deviceId, gsi2sk: 'S#' + weekId,
-            ttl: ttlFrom(ts, SCORE_TTL_DAYS)
-          },
+          Item: item,
           ConditionExpression: 'attribute_not_exists(pk) OR score < :score',
           ExpressionAttributeValues: { ':score': score }
         }));
@@ -124,22 +138,32 @@ function createDynamoStore({ doc, cmd, table, now, sleep }) {
 
     async getScore(weekId, deviceId) {
       const out = await doc.send(new cmd.GetCommand({ TableName: table, Key: { pk: 'W#' + weekId, sk: 'S#' + deviceId } }));
-      return out.Item ? { name: out.Item.name, score: out.Item.score } : null;
+      return out.Item ? { name: out.Item.name, score: out.Item.score, ref: out.Item.ref } : null;
     },
 
+    // Hidden (reported/removed) entries are filtered out. DynamoDB applies Limit before the
+    // filter, so keep paging until enough visible entries are found.
     async topScores(weekId, limit) {
-      const out = await doc.send(new cmd.QueryCommand({
-        TableName: table, IndexName: 'byScore',
-        KeyConditionExpression: 'gsi1pk = :p',
-        ExpressionAttributeValues: { ':p': 'W#' + weekId },
-        ScanIndexForward: false, Limit: limit
-      }));
-      return (out.Items || []).map((i) => ({ name: i.name, score: i.score }));
+      const found = [];
+      let key;
+      do {
+        const out = await doc.send(new cmd.QueryCommand({
+          TableName: table, IndexName: 'byScore',
+          KeyConditionExpression: 'gsi1pk = :p',
+          FilterExpression: 'attribute_not_exists(hidden)',
+          ExpressionAttributeValues: { ':p': 'W#' + weekId },
+          ScanIndexForward: false, Limit: limit + 10, ExclusiveStartKey: key
+        }));
+        found.push(...(out.Items || []));
+        key = out.LastEvaluatedKey;
+      } while (key && found.length < limit);
+      return found.slice(0, limit).map((i) => ({ name: i.name, score: i.score, ref: i.ref }));
     },
 
     async countScores(weekId) {
       return countAll({
         KeyConditionExpression: 'pk = :p AND begins_with(sk, :s)',
+        FilterExpression: 'attribute_not_exists(hidden)',
         ExpressionAttributeValues: { ':p': 'W#' + weekId, ':s': 'S#' }
       });
     },
@@ -149,6 +173,7 @@ function createDynamoStore({ doc, cmd, table, now, sleep }) {
       const higher = await countAll({
         IndexName: 'byScore',
         KeyConditionExpression: 'gsi1pk = :p AND gsi1sk >= :s',
+        FilterExpression: 'attribute_not_exists(hidden)',
         ExpressionAttributeValues: { ':p': 'W#' + weekId, ':s': pad(score + 1, 4) + '#' }
       });
       return 1 + higher;
@@ -202,8 +227,72 @@ function createDynamoStore({ doc, cmd, table, now, sleep }) {
         outs.forEach((out) => found.push(...((out.Responses && out.Responses[table]) || [])));
       }
       return found
+        .filter((i) => !i.hidden)
         .sort((a, b) => b.score - a.score || a.ts - b.ts)
-        .map((i) => ({ name: i.name, score: i.score }));
+        .map((i) => ({ name: i.name, score: i.score, ref: i.ref }));
+    },
+
+    /* ---- user-generated-content safety ---- */
+    async getRefInfo(ref) {
+      const out = await doc.send(new cmd.GetCommand({ TableName: table, Key: { pk: 'RF#' + ref, sk: 'DEV' } }));
+      return out.Item ? { name: out.Item.name, hidden: !!out.Item.hidden } : null;
+    },
+
+    async addReport({ ref, reporterRef, reporterDevice, reason, weekId, ts }) {
+      let added = true;
+      try {
+        await doc.send(new cmd.PutCommand({
+          TableName: table,
+          Item: {
+            pk: 'R#' + ref, sk: reporterRef, reason, weekId: weekId || '-', ts,
+            gsi2pk: 'D#' + reporterDevice, gsi2sk: 'R#' + ref,
+            ttl: ttlFrom(ts, REPORT_TTL_DAYS)
+          },
+          ConditionExpression: 'attribute_not_exists(pk)'
+        }));
+      } catch (e) {
+        if (!isConditionFailure(e)) throw e;
+        added = false;
+      }
+      const count = await countAll({
+        KeyConditionExpression: 'pk = :p',
+        ExpressionAttributeValues: { ':p': 'R#' + ref }
+      });
+      return { added, count };
+    },
+
+    // Hides the entry in every week it appears (found through the owning device's index).
+    async hideRef(ref) {
+      const info = await doc.send(new cmd.GetCommand({ TableName: table, Key: { pk: 'RF#' + ref, sk: 'DEV' } }));
+      if (!info.Item) return false;
+      await doc.send(new cmd.UpdateCommand({
+        TableName: table, Key: { pk: 'RF#' + ref, sk: 'DEV' },
+        UpdateExpression: 'SET hidden = :t', ExpressionAttributeValues: { ':t': true }
+      }));
+      const owned = await queryAll({
+        IndexName: 'byDevice',
+        KeyConditionExpression: 'gsi2pk = :d AND begins_with(gsi2sk, :s)',
+        ExpressionAttributeValues: { ':d': 'D#' + info.Item.deviceId, ':s': 'S#' }
+      });
+      for (const item of owned) {
+        await doc.send(new cmd.UpdateCommand({
+          TableName: table, Key: { pk: item.pk, sk: item.sk },
+          UpdateExpression: 'SET hidden = :t', ExpressionAttributeValues: { ':t': true }
+        }));
+      }
+      return true;
+    },
+
+    async banDevice(deviceId) {
+      await doc.send(new cmd.UpdateCommand({
+        TableName: table, Key: { pk: 'D#' + deviceId, sk: 'KEY' },
+        UpdateExpression: 'SET banned = :t', ExpressionAttributeValues: { ':t': true }
+      }));
+    },
+
+    async isBanned(deviceId) {
+      const out = await doc.send(new cmd.GetCommand({ TableName: table, Key: { pk: 'D#' + deviceId, sk: 'KEY' } }));
+      return !!(out.Item && out.Item.banned);
     },
 
     async deleteDevice(deviceId) {
@@ -223,4 +312,4 @@ function createDynamoStore({ doc, cmd, table, now, sleep }) {
   };
 }
 
-module.exports = { createDynamoStore, scoreSortKey, SCORE_TTL_DAYS, GROUP_TTL_DAYS };
+module.exports = { createDynamoStore, scoreSortKey, SCORE_TTL_DAYS, GROUP_TTL_DAYS, REPORT_TTL_DAYS };
