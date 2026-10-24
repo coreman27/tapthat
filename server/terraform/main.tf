@@ -173,7 +173,8 @@ resource "aws_lambda_function" "api" {
 
   environment {
     variables = {
-      TABLE_NAME = aws_dynamodb_table.leaderboard.name
+      TABLE_NAME      = aws_dynamodb_table.leaderboard.name
+      ALLOWED_ORIGINS = join(",", var.allowed_origins)
     }
   }
 
@@ -185,13 +186,6 @@ resource "aws_lambda_function" "api" {
 resource "aws_apigatewayv2_api" "http" {
   name          = local.name
   protocol_type = "HTTP"
-
-  cors_configuration {
-    allow_origins = var.allowed_origins
-    allow_methods = ["GET", "POST", "OPTIONS"]
-    allow_headers = ["content-type"]
-    max_age       = 3600
-  }
 }
 
 resource "aws_apigatewayv2_integration" "lambda" {

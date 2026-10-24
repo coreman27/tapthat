@@ -266,3 +266,83 @@ test('banned devices cannot post, create or join groups, but can still delete th
   assert.equal((await s.call('POST', '/v1/delete', identity('bad'))).status, 200, 'privacy: deletion is always allowed');
   assert.equal((await submit(s, 'good', 'Good', 5)).status, 200, 'other players are unaffected');
 });
+
+
+// ---- CORS (handled in the Lambda: API Gateway cannot allow the iOS app's capacitor://localhost) ----
+const APP_ORIGIN = 'capacitor://localhost';
+function corsSetup() {
+  const store = createMemoryStore();
+  const handler = createHandler({ store, now: () => MID_WEEK, log() {}, allowedOrigins: [APP_ORIGIN, 'https://donttapthat.com'] });
+  return (method, path, origin, body, headerName) => handler({
+    requestContext: { http: { method } }, rawPath: path, body: body ? JSON.stringify(body) : undefined,
+    headers: origin ? { [headerName || 'origin']: origin } : {}
+  });
+}
+
+test('CORS: the iOS app origin is allowed on normal responses', async () => {
+  const call = corsSetup();
+  const res = await call('GET', '/v1/health', APP_ORIGIN);
+  assert.equal(res.statusCode, 200);
+  assert.equal(res.headers['access-control-allow-origin'], APP_ORIGIN);
+  assert.equal(res.headers.vary, 'Origin');
+  assert.equal((await call('GET', '/v1/health', 'https://donttapthat.com')).headers['access-control-allow-origin'], 'https://donttapthat.com');
+});
+
+test('CORS: the header is added to errors too (otherwise the app could not even read the error)', async () => {
+  const call = corsSetup();
+  for (const [method, path, body, status] of [
+    ['GET', '/v1/nope', null, 404],
+    ['POST', '/v1/scores', { deviceId: 'bad' }, 400],
+    ['POST', '/v1/report', { deviceId: 'bad' }, 400]
+  ]) {
+    const res = await call(method, path, APP_ORIGIN, body);
+    assert.equal(res.statusCode, status);
+    assert.equal(res.headers['access-control-allow-origin'], APP_ORIGIN, path);
+  }
+});
+
+test('CORS: other origins and requests without an Origin get no allow header', async () => {
+  const call = corsSetup();
+  assert.equal((await call('GET', '/v1/health', 'https://evil.example')).headers['access-control-allow-origin'], undefined);
+  assert.equal((await call('GET', '/v1/health', 'capacitor://other')).headers['access-control-allow-origin'], undefined);
+  assert.equal((await call('GET', '/v1/health')).headers['access-control-allow-origin'], undefined, 'curl / server-to-server');
+  assert.equal((await call('GET', '/v1/health', 'null')).headers['access-control-allow-origin'], undefined);
+  assert.equal((await call('GET', '/v1/health', 'https://donttapthat.com.evil.example')).headers['access-control-allow-origin'], undefined, 'no prefix tricks');
+});
+
+test('CORS: preflight is answered for allowed origins and refused for others', async () => {
+  const call = corsSetup();
+  const ok = await call('OPTIONS', '/v1/scores', APP_ORIGIN);
+  assert.equal(ok.statusCode, 204);
+  assert.equal(ok.body, '');
+  assert.equal(ok.headers['access-control-allow-origin'], APP_ORIGIN);
+  assert.match(ok.headers['access-control-allow-methods'], /POST/);
+  assert.match(ok.headers['access-control-allow-headers'], /content-type/);
+  assert.ok(Number(ok.headers['access-control-max-age']) > 0);
+  const refused = await call('OPTIONS', '/v1/scores', 'https://evil.example');
+  assert.equal(refused.statusCode, 403);
+  assert.equal(refused.headers['access-control-allow-origin'], undefined);
+  assert.equal((await call('OPTIONS', '/v1/scores')).statusCode, 403, 'no origin, no preflight');
+});
+
+test('CORS: the Origin header is found whatever its capitalization', async () => {
+  const call = corsSetup();
+  assert.equal((await call('GET', '/v1/health', APP_ORIGIN, null, 'Origin')).headers['access-control-allow-origin'], APP_ORIGIN);
+  assert.equal((await call('GET', '/v1/health', APP_ORIGIN, null, 'ORIGIN')).headers['access-control-allow-origin'], APP_ORIGIN);
+});
+
+test('CORS: with no allow-list configured nothing is allowed', async () => {
+  const handler = createHandler({ store: createMemoryStore(), now: () => MID_WEEK, log() {} });
+  const res = await handler({ requestContext: { http: { method: 'GET' } }, rawPath: '/v1/health', headers: { origin: APP_ORIGIN } });
+  assert.equal(res.headers['access-control-allow-origin'], undefined);
+});
+
+test('Terraform passes the same origins to the Lambda that the app needs', () => {
+  const fs = require('node:fs');
+  const path = require('node:path');
+  const main = fs.readFileSync(path.join(__dirname, '..', 'terraform', 'main.tf'), 'utf8');
+  const vars = fs.readFileSync(path.join(__dirname, '..', 'terraform', 'variables.tf'), 'utf8');
+  assert.match(main, /ALLOWED_ORIGINS\s*=\s*join\(",", var\.allowed_origins\)/);
+  assert.doesNotMatch(main, /cors_configuration/, 'API Gateway rejects capacitor://localhost, so CORS lives in the Lambda');
+  assert.ok(vars.includes('"capacitor://localhost"'), 'the iOS app origin is on the list');
+});

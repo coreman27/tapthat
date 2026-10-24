@@ -10,13 +10,13 @@ const { createHandler } = require('../src/handler');
 const { createMemoryStore } = require('../src/store-memory');
 
 function serve(store) {
-  const handler = createHandler({ store, log() {} });
+  const handler = createHandler({ store, log() {}, allowedOrigins: ['capacitor://localhost', 'https://donttapthat.com'] });
   const server = http.createServer(async (req, res) => {
     const chunks = [];
     for await (const c of req) chunks.push(c);
     const url = new URL(req.url, 'http://localhost');
     const out = await handler({
-      requestContext: { http: { method: req.method } }, rawPath: url.pathname,
+      requestContext: { http: { method: req.method } }, rawPath: url.pathname, headers: req.headers,
       queryStringParameters: Object.fromEntries(url.searchParams), body: Buffer.concat(chunks).toString() || undefined
     });
     res.writeHead(out.statusCode, out.headers);

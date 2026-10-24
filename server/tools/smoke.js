@@ -30,10 +30,11 @@ const check = (ok, label, detail) => {
   console.log((ok ? '  ok   ' : '  FAIL ') + label + (ok || !detail ? '' : '  -> ' + detail));
 };
 
-async function call(method, path, body, query) {
+async function call(method, path, body, query, extraHeaders) {
   const url = base + path + (query ? '?' + new URLSearchParams(query) : '');
   const res = await fetch(url, {
-    method, headers: body ? { 'content-type': 'application/json' } : undefined, body: body ? JSON.stringify(body) : undefined
+    method, headers: { ...(body ? { 'content-type': 'application/json' } : {}), ...(extraHeaders || {}) },
+    body: body ? JSON.stringify(body) : undefined
   });
   let json = {};
   try { json = await res.json(); } catch (e) { /* non-JSON error page */ }
@@ -45,6 +46,14 @@ async function call(method, path, body, query) {
   try {
     const health = await call('GET', '/v1/health');
     check(health.status === 200 && health.body.ok === true, 'health endpoint');
+
+    // The iOS app runs at capacitor://localhost; without these headers it could not read any response.
+    const pre = await call('OPTIONS', '/v1/scores', null, null, { origin: 'capacitor://localhost', 'access-control-request-method': 'POST' });
+    check(pre.status === 204 && pre.headers.get('access-control-allow-origin') === 'capacitor://localhost', 'CORS preflight allows the iOS app', 'status ' + pre.status + ', header ' + pre.headers.get('access-control-allow-origin'));
+    const withOrigin = await call('GET', '/v1/health', null, null, { origin: 'capacitor://localhost' });
+    check(withOrigin.headers.get('access-control-allow-origin') === 'capacitor://localhost', 'responses carry the allow-origin header for the app');
+    const evil = await call('OPTIONS', '/v1/scores', null, null, { origin: 'https://evil.example', 'access-control-request-method': 'POST' });
+    check(evil.status !== 204 && !evil.headers.get('access-control-allow-origin'), 'other origins are not allowed', 'status ' + evil.status);
 
     const unknown = await call('GET', '/v1/definitely-not-a-route');
     check(unknown.status === 404, 'unknown route is 404', 'got ' + unknown.status);

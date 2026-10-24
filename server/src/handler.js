@@ -31,6 +31,7 @@ function createHandler(deps) {
   const now = deps.now || Date.now;
   const randomInt = deps.randomInt || ((n) => crypto.randomInt(n));
   const gameDir = deps.gameDir;
+  const allowedOrigins = new Set(deps.allowedOrigins || []);
   const log = deps.log || ((...args) => console.error(...args));
 
   const respond = (statusCode, payload) => ({
@@ -185,7 +186,7 @@ function createHandler(deps) {
     return respond(200, { ok: true });
   }
 
-  return async function handler(event) {
+  async function route(event) {
     try {
       const method = ((event.requestContext && event.requestContext.http && event.requestContext.http.method) || event.httpMethod || '').toUpperCase();
       const path = (event.rawPath || event.path || '').replace(/\/+$/, '') || '/';
@@ -214,6 +215,40 @@ function createHandler(deps) {
       log('leaderboard handler error', error);
       return bad(500, 'server_error', 'Something went wrong.');
     }
+  }
+
+  /* CORS. The iOS app's WebView origin is capacitor://localhost, which API Gateway's own CORS
+     setting rejects, so it is handled here. Only origins on the allow-list get the header; a
+     request without an Origin (the smoke test, curl) gets none. */
+  function requestOrigin(event) {
+    const headers = event.headers || {};
+    for (const name of Object.keys(headers)) if (name.toLowerCase() === 'origin') return headers[name];
+    return '';
+  }
+
+  return async function handler(event) {
+    const origin = requestOrigin(event);
+    const method = ((event.requestContext && event.requestContext.http && event.requestContext.http.method) || event.httpMethod || '').toUpperCase();
+    const allowed = origin && allowedOrigins.has(origin);
+    const cors = allowed ? {
+      'access-control-allow-origin': origin,
+      'vary': 'Origin'
+    } : { 'vary': 'Origin' };
+
+    if (method === 'OPTIONS') {
+      return {
+        statusCode: allowed ? 204 : 403,
+        headers: allowed ? {
+          ...cors,
+          'access-control-allow-methods': 'GET, POST, OPTIONS',
+          'access-control-allow-headers': 'content-type',
+          'access-control-max-age': '3600'
+        } : { 'vary': 'Origin' },
+        body: ''
+      };
+    }
+    const response = await route(event);
+    return { ...response, headers: { ...response.headers, ...cors } };
   };
 }
 
