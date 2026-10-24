@@ -39,10 +39,14 @@
         <h1 class="logo">Don't<span class="logo-accent">Tap That</span></h1>
         <p class="tagline">Obey the command. Or don't. An AI is learning how to beat you.</p>
 
-        <div class="name-row">
-          <label for="playerName">You are</label>
-          <input id="playerName" type="text" maxlength="14" placeholder="Your name" autocomplete="off" spellcheck="false" />
-        </div>
+        <button id="btn-name" class="player-card empty" aria-label="Your name. Tap to change it.">
+          <span id="player-avatar" class="avatar" aria-hidden="true">+</span>
+          <span class="pc-main">
+            <strong id="player-name-text">Add your name</strong>
+            <span id="player-sub" class="pc-sub">Tap to set how you appear</span>
+          </span>
+          <span class="pc-edit" aria-hidden="true">Edit</span>
+        </button>
 
         <button id="btn-play" class="big-btn primary">Play</button>
 
@@ -54,19 +58,23 @@
           <i class="chev"></i>
         </button>
 
+        <button id="btn-lb" class="card-btn lb-preview hidden">
+          <span class="cb-main">
+            <strong>This week's leaderboard</strong>
+            <span id="lbp-list" class="lbp-list"></span>
+            <span id="lbp-footer" class="weekly-line"></span>
+          </span>
+          <i class="chev"></i>
+        </button>
+
         <div class="glass-list">
           <div class="gl-inner">
-            <button id="btn-lb" class="row hidden"><span>Weekly leaderboard</span><i class="chev"></i></button>
             <button id="btn-themes" class="row hidden"><span>Themes</span><i class="chev"></i></button>
             <button id="btn-how" class="row"><span>How to play</span><i class="chev"></i></button>
             <button id="btn-store" class="row hidden"><span>Remove ads &amp; purchases</span><i class="chev"></i></button>
           </div>
         </div>
 
-        <div class="best-line">
-          <span>Best</span>
-          <strong id="home-best">0</strong>
-        </div>
       </div>
     </section>
 
@@ -176,9 +184,17 @@
           <button id="lb-tab-global" class="link-btn lb-tab active">Everyone</button>
           <button id="lb-tab-friends" class="link-btn lb-tab">Friends</button>
         </div>
+        <div id="lb-join-banner" class="lb-join hidden">
+          <span>Join to post your score and play with friends.</span>
+          <button id="btn-lb-joinbar" class="link-btn">Join</button>
+        </div>
         <ol id="lb-list" class="lb-list"></ol>
         <p id="lb-status" class="purchase-status" role="status"></p>
         <p id="lb-hidden-note" class="purchase-status hidden"><span id="lb-hidden-count">0</span> hidden · <button id="btn-lb-unhide" class="link-btn">Show all</button></p>
+        <div id="lb-friends-join" class="lb-join hidden">
+          <span>Friend groups need you to join first. It takes a few seconds.</span>
+          <button id="btn-lb-friends-join" class="link-btn">Join</button>
+        </div>
         <div id="lb-friends" class="lb-friends hidden">
           <p id="lb-group-code" class="weekly-line"></p>
           <button id="btn-lb-share-code" class="link-btn hidden">Share this group</button>
@@ -235,6 +251,15 @@
     <div id="toast" class="toast hidden"></div>
   </div>
 
+  <div id="name-sheet" class="sheet sheet-top hidden" role="dialog" aria-modal="true" aria-labelledby="name-sheet-title">
+    <div class="sheet-card">
+      <p id="name-sheet-title" class="sheet-title">What should we call you?</p>
+      <input id="name-input" class="sheet-input" type="text" maxlength="14" placeholder="Your name" autocomplete="off" autocapitalize="words" spellcheck="false" enterkeyhint="done" />
+      <button id="btn-name-save" class="big-btn primary">Save</button>
+      <button id="btn-name-cancel" class="link-btn">Cancel</button>
+    </div>
+  </div>
+
   <script src="js/storage.js"></script>
   <script src="js/audio.js"></script>
   <script src="js/weekly.js"></script>
@@ -249,6 +274,7 @@
   <script src="js/ad-config.js"></script>
   <script src="js/ad-policy.js"></script>
   <script src="js/monetization.js"></script>
+  <script src="js/profile.js"></script>
   <script src="js/leaderboard-ui.js"></script>
   <script src="js/main.js"></script>
 </body>

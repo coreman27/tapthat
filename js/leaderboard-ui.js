@@ -4,7 +4,7 @@
   'use strict';
 
   var el = function (id) { return document.getElementById(id); };
-  var deps = { playerName: function () { return 'Player'; } };
+  var deps = { playerName: function () { return 'Player'; }, onNameChanged: function () {} };
   var tab = 'global';
   var activeGroup = null;
   var returnTo = 'home';
@@ -14,6 +14,10 @@
     deps = Object.assign(deps, options || {});
     refreshEntry();
     el('btn-lb').addEventListener('click', function () { open('home'); });
+    el('btn-lb-joinbar').addEventListener('click', function () { goJoin(); });
+    el('btn-lb-friends-join').addEventListener('click', function () { goJoin(); });
+    global.document.addEventListener('visibilitychange', function () { if (!global.document.hidden) refreshPreview(); });
+    refreshPreview();
     el('btn-join-lb').addEventListener('click', function () { open('over'); });
     el('btn-lb-nothanks').addEventListener('click', function () { UI.show(returnTo); });
     el('btn-lb-join').addEventListener('click', join);
@@ -41,15 +45,23 @@
     return 'Week ' + parseInt(id.split('-W')[1], 10) + ' • resets in ' + Weekly.resetLabel(Weekly.msUntilReset());
   }
 
+  /* The board is public: anyone can look without joining. Joining is only needed to post a
+     score, make or join friend groups. */
   function open(from) {
     returnTo = from || 'home';
-    if (!Leaderboard.isOptedIn()) {
-      el('lb-name-input').value = Store.name || '';
-      UI.show('lb-optin');
-      return;
-    }
     UI.show('lb');
     setTab(tab);
+  }
+
+  function goJoin() {
+    el('lb-name-input').value = Store.name || '';
+    UI.show('lb-optin');
+  }
+
+  function renderJoinState() {
+    var joined = Leaderboard.isOptedIn();
+    el('lb-join-banner').classList.toggle('hidden', joined);
+    el('btn-lb-delete').classList.toggle('hidden', !Store.lb.deviceId);
   }
 
   function join() {
@@ -57,13 +69,13 @@
     var chosen = (el('lb-name-input').value || '').replace(/\s+/g, ' ').trim().slice(0, 14);
     if (!chosen) { UI.toast('Pick a name to show on the leaderboard.'); return; }
     Store.setName(chosen);
-    var home = el('playerName');
-    if (home) home.value = chosen;
+    deps.onNameChanged();
     Leaderboard.optIn();
     Leaderboard.flushPending();
     el('btn-join-lb').classList.add('hidden');
     UI.show('lb');
     setTab('global');
+    refreshPreview(true);
   }
 
   function setStatus(text) { el('lb-status').textContent = text || ''; }
@@ -72,9 +84,12 @@
     tab = next;
     el('lb-tab-global').classList.toggle('active', tab === 'global');
     el('lb-tab-friends').classList.toggle('active', tab === 'friends');
-    el('lb-friends').classList.toggle('hidden', tab !== 'friends');
+    var joined = Leaderboard.isOptedIn();
+    el('lb-friends').classList.toggle('hidden', tab !== 'friends' || !joined);
+    el('lb-friends-join').classList.toggle('hidden', tab !== 'friends' || joined);
     el('lb-week').textContent = weekLabel();
-    if (tab === 'friends') {
+    renderJoinState();
+    if (tab === 'friends' && joined) {
       activeGroup = activeGroup || Store.lb.groups[0] || null;
       renderGroupCode();
     }
@@ -90,7 +105,7 @@
     var weekId = Weekly.weekId();
     var list = el('lb-list');
     list.innerHTML = '';
-    if (tab === 'friends' && !activeGroup) { setStatus(''); return; }
+    if (tab === 'friends' && (!activeGroup || !Leaderboard.isOptedIn())) { setStatus(''); return; }
     setStatus('Loading…');
     var request = tab === 'global' ? Leaderboard.board(weekId) : Leaderboard.groupBoard(activeGroup, weekId);
     request.then(function (data) {
@@ -98,6 +113,52 @@
     }, function (error) {
       setStatus(error.code === 'network' ? 'Can’t reach the leaderboard. Check your connection.' : error.message);
     });
+  }
+
+  /* ---- home screen preview: the top of this week's board, shown without joining ---- */
+  var previewAt = 0;
+  var previewBusy = false;
+
+  /* Pure: what the home card shows for a board response (or a failure). */
+  function previewModel(data, blocked, myRef) {
+    if (!data) return { state: 'error', rows: [], footer: 'Tap to see this week\u2019s leaderboard' };
+    var view = visibleEntries(data, blocked, myRef);
+    var rows = view.rows.slice(0, 3).map(function (r) { return { rank: r.entry.rank, name: r.entry.name, score: r.entry.score, mine: r.mine }; });
+    if (!rows.length) return { state: 'empty', rows: [], footer: 'No scores yet. Be the first this week!' };
+    var you = data.you || null;
+    var footer = you ? 'You are #' + you.rank + ' of ' + data.total : (data.total > rows.length ? data.total + ' players this week' : '');
+    return { state: 'ready', rows: rows, footer: footer };
+  }
+
+  function renderPreview(model) {
+    var list = el('lbp-list');
+    list.innerHTML = '';
+    model.rows.forEach(function (row) {
+      var line = document.createElement('span');
+      line.className = 'lbp-row' + (row.mine ? ' me' : '');
+      [['rk', '#' + row.rank], ['nm', row.name], ['sc', String(row.score)]].forEach(function (pair) {
+        var cell = document.createElement('span');
+        cell.className = pair[0];
+        cell.textContent = pair[1]; // names are user content: textContent only
+        line.appendChild(cell);
+      });
+      list.appendChild(line);
+    });
+    el('lbp-footer').textContent = model.footer;
+  }
+
+  // Throttled: at most one request a minute unless forced (e.g. right after joining or posting).
+  function refreshPreview(force) {
+    if (!Leaderboard.enabled() || previewBusy) return;
+    if (!force && previewAt && Date.now() - previewAt < 60000) return;
+    previewBusy = true;
+    if (!previewAt) el('lbp-footer').textContent = 'Loading this week\u2019s scores\u2026';
+    Leaderboard.board(Weekly.weekId()).then(function (data) {
+      previewAt = Date.now();
+      renderPreview(previewModel(data, Leaderboard.blockedRefs(), Store.lb.myRef));
+    }, function () {
+      renderPreview(previewModel(null));
+    }).then(function () { previewBusy = false; });
   }
 
   /* Which rows to show: drops players this device has hidden, and marks the player's own
@@ -170,6 +231,7 @@
       UI.toast(Leaderboard.isTransient(error) ? 'Hidden for you. The report will not reach us while offline.' : 'Hidden for you.', 3500);
     });
     if (lastData) renderEntries(lastData);
+    refreshPreview(true);
   }
 
   function hideTarget() {
@@ -179,11 +241,13 @@
     Leaderboard.block(target.ref);
     UI.toast('Hidden. You can show everyone again below.', 3000);
     if (lastData) renderEntries(lastData);
+    refreshPreview(true);
   }
 
   function unhideAll() {
     Leaderboard.unblockAll();
     if (lastData) renderEntries(lastData);
+    refreshPreview(true);
   }
 
   function guard(fn) {
@@ -246,11 +310,15 @@
     rank.classList.remove('hidden');
     Leaderboard.submit(run).then(function (res) {
       rank.textContent = 'Weekly rank #' + res.rank + ' of ' + res.total;
+      refreshPreview(true); // the home card shows the new standing when you get back
     }, function (error) {
       if (Leaderboard.isTransient(error)) rank.textContent = 'Saved. It will post when you’re back online.';
       else rank.classList.add('hidden');
     });
   }
 
-  global.LeaderboardUI = { init: init, afterWeeklyRun: afterWeeklyRun, refreshEntry: refreshEntry, visibleEntries: visibleEntries };
+  global.LeaderboardUI = {
+    init: init, afterWeeklyRun: afterWeeklyRun, refreshEntry: refreshEntry,
+    visibleEntries: visibleEntries, previewModel: previewModel, refreshPreview: refreshPreview
+  };
 })(window);

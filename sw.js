@@ -17,6 +17,7 @@ var ASSETS = [
   './js/share.js',
   './js/leaderboard-config.js',
   './js/leaderboard.js',
+  './js/profile.js',
   './js/leaderboard-ui.js',
   './js/challenges.js',
   './js/adaptive.js',
