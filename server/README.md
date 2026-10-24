@@ -17,6 +17,7 @@ The account's Lambda concurrency quota (10) is a second ceiling.
 | POST | `/v1/groups` | Create a friend group; returns a 6-character code |
 | POST | `/v1/groups/{code}/join` | Join a group (max 50 members) |
 | GET | `/v1/groups/{code}/weeks/{weekId}` | Group leaderboard |
+| POST | `/v1/report` | Report an entry by its opaque `ref` (3 distinct reporters hide it automatically) |
 | POST | `/v1/delete` | Delete everything for the device (privacy) |
 | GET | `/v1/health` | Liveness |
 
@@ -38,9 +39,50 @@ Names: letters, digits, space, `_`, `-`, max 14, filtered for profanity (incl. l
 filtered names become `PlayerNNNN`. The word list in `src/validate.js` is a starting point;
 extend it as needed. Some innocent names (e.g. "Sussex") are caught by the strict filter.
 
+## Names are user-generated content (App Store Guideline 1.2)
+
+Anyone can pick a display name, so the leaderboard has the protections Apple requires:
+
+- **Filter:** names are limited to letters, digits, space, `_`, `-` (14 characters) and checked
+  against a profanity list that also catches leetspeak and spacing. Filtered names become `PlayerNNNN`.
+- **Report:** tapping another player's row offers *Report this name* or *Hide this player*. A report
+  hides the entry on the reporter's device at once. **Three distinct reporters hide it for everyone
+  automatically**, with no human in the loop, so a bad name disappears quickly.
+- **Block:** *Hide this player* is local to the device (up to 200 players) and can be undone.
+- **Rows never expose device ids.** Each row has a 12-character one-way `ref`, which is all that is
+  needed to report or hide someone.
+- **Rules and contact:** the join screen states the rules, and the leaderboard has *Report a problem*
+  (support@tapthat.game). Hidden players stay hidden in every week and when they post again.
+- **You review and act:** `tools/moderate.js` (below). A banned device can no longer post or join groups
+  but can still delete its own data. A ban is advisory: someone who reinstalls gets a new anonymous id.
+
+## Moderating (you run this, with your own AWS credentials)
+
+```bash
+cd server
+AWS_PROFILE=corey node tools/moderate.js reports                  # who has been reported, most first
+AWS_PROFILE=corey node tools/moderate.js remove <ref>              # hide everywhere
+AWS_PROFILE=corey node tools/moderate.js remove <ref> --ban        # also stop that device posting
+AWS_PROFILE=corey node tools/moderate.js restore <ref> [--unban]   # undo
+```
+
+Apple expects timely responses to reports, so check `reports` regularly (daily for the first weeks),
+and respond to emails sent to support@tapthat.game. There is no admin endpoint on the internet.
+
+## Verifying a deployment
+
+```bash
+node tools/smoke.js "$(cd terraform && terraform output -raw api_url)"
+```
+
+It plays a throwaway player through the real API (valid run accepted, cheating and malformed requests
+refused, board and group boards, self-report refused, impersonation refused), then deletes everything it
+created. The script is itself tested against the real handler (`test/smoke.test.js`), so a failure
+against the live API means the deployment is wrong, not the script.
+
 ## Data and retention (DynamoDB, one table)
 
-Weekly scores expire after 70 days, groups after 365 days (DynamoDB TTL). `POST /v1/delete`
+Weekly scores expire after 70 days, groups after 365 days, reports after 180 days (DynamoDB TTL). `POST /v1/delete`
 removes a device's key, scores and memberships (found via the `byDevice` index). Group
 records store no owner id.
 
@@ -48,7 +90,7 @@ records store no owner id.
 
 ```bash
 cd server
-npm test            # 46 tests: validation, plausibility, API flows, store contract, bundle
+npm test            # 74 tests: validation, plausibility, API flows, store contract, moderation, smoke, bundle
 npm run build       # assembles dist/ (server code + the game's logic files)
 ```
 
@@ -67,7 +109,7 @@ cd server
 npm test && npm run build
 cd terraform
 AWS_PROFILE=corey terraform init
-AWS_PROFILE=corey terraform plan      # review: expect ~13 resources, no changes elsewhere
+AWS_PROFILE=corey terraform plan      # review: expect 10 to add, 0 to change, 0 to destroy
 AWS_PROFILE=corey terraform apply
 AWS_PROFILE=corey terraform output api_url
 ```
@@ -86,12 +128,13 @@ account quota is 10 and AWS requires 10 to stay unreserved.
 ## App Store privacy answers when the leaderboard is enabled
 
 "Data Not Collected" stops being accurate. Declare, for the leaderboard only:
-- **User Content / Gameplay Content**: weekly score and reaction times. App functionality,
-  not used for tracking.
-- **Identifiers / User ID**: the random anonymous ID. App functionality, not linked to
-  identity, not used for tracking.
-- **Other User Content or Contact Info → Name**: the player-chosen display name (it is
-  free-text-ish). Review with Apple's definitions; declaring it is the safe choice.
+- **Identifiers > User ID**: the random anonymous id and the player-chosen display name (Apple
+  counts a screen name as a User ID). Purpose: App Functionality. Linked to the user (it ties their
+  scores together): yes. Used for tracking: no.
+- **User Content > Gameplay Content**: weekly scores and per-round reaction times. Purpose: App
+  Functionality. Linked: yes. Tracking: no.
+- Nothing is collected from players who never tap Join. Combine these with the AdMob SDK's categories.
+  `ios/App/App/PrivacyInfo.xcprivacy` declares the same two types; keep it in step with these answers.
 
 Also revisit the age rating and Kids/child-audience implications before enabling: the app
 is for all ages and has no age gate, and the leaderboard shows user-chosen names.

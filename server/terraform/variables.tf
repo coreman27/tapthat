@@ -5,7 +5,7 @@ variable "aws_region" {
 }
 
 variable "allowed_origins" {
-  description = "Browser/WebView origins allowed to call the API (CORS). capacitor://localhost is the iOS app."
+  description = "Origins allowed to call the API, enforced in the Lambda (API Gateway CORS cannot express capacitor://localhost, the iOS app origin)."
   type        = list(string)
   default = [
     "capacitor://localhost",

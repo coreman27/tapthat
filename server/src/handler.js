@@ -17,12 +17,21 @@ const GROUP_MAX_MEMBERS = 50;
 const LEADERBOARD_DEFAULT = 25;
 const LEADERBOARD_MAX = 100;
 const ROLLOVER_GRACE_MS = 6 * 60 * 60 * 1000; // a run started just before reset may still post
+const REPORT_HIDE_THRESHOLD = 3;              // distinct reporters that hide an entry automatically
+const REPORT_REASONS = ['name', 'cheating', 'other'];
+
+/* Opaque public id for a player: lets people report or hide someone without ever seeing a
+   device id. One-way, stable across weeks (so a block keeps working). */
+function refOf(deviceId) {
+  return crypto.createHash('sha256').update('dtt-ref:' + deviceId).digest('hex').slice(0, 12);
+}
 
 function createHandler(deps) {
   const store = deps.store;
   const now = deps.now || Date.now;
   const randomInt = deps.randomInt || ((n) => crypto.randomInt(n));
   const gameDir = deps.gameDir;
+  const allowedOrigins = new Set(deps.allowedOrigins || []);
   const log = deps.log || ((...args) => console.error(...args));
 
   const respond = (statusCode, payload) => ({
@@ -49,6 +58,10 @@ function createHandler(deps) {
     return ok ? null : bad(401, 'unauthorized', 'Device key does not match.');
   }
 
+  async function banned(body) {
+    return (await store.isBanned(body.deviceId)) ? bad(403, 'banned', 'This device can no longer post to the leaderboard.') : null;
+  }
+
   function parseBody(event) {
     const raw = event.isBase64Encoded ? Buffer.from(event.body || '', 'base64').toString('utf8') : (event.body || '');
     if (Buffer.byteLength(raw) > MAX_BODY_BYTES) return { error: bad(413, 'too_large', 'Request body too large.') };
@@ -65,6 +78,8 @@ function createHandler(deps) {
   async function postScore(body) {
     const denied = await authenticate(body);
     if (denied) return denied;
+    const blocked = await banned(body);
+    if (blocked) return blocked;
     if (!v.isWeekId(body.weekId)) return bad(400, 'bad_week', 'Invalid week.');
     if (!acceptedWeeks().has(body.weekId)) return bad(409, 'week_closed', 'That week is not open for scores.');
     if (!v.isScore(body.score)) return bad(400, 'bad_score', 'Invalid score.');
@@ -74,24 +89,24 @@ function createHandler(deps) {
 
     const name = v.sanitizeName(body.name, body.deviceId);
     const result = await store.putScore({
-      weekId: body.weekId, deviceId: body.deviceId, name, score: body.score, ts: now()
+      weekId: body.weekId, deviceId: body.deviceId, name, score: body.score, ts: now(), ref: refOf(body.deviceId)
     });
     const [rank, total] = await Promise.all([
       store.rankOf(body.weekId, result.best),
       store.countScores(body.weekId)
     ]);
-    return respond(200, { ok: true, improved: result.improved, best: result.best, rank, total, name });
+    return respond(200, { ok: true, improved: result.improved, best: result.best, rank, total, name, ref: refOf(body.deviceId) });
   }
 
   async function getLeaderboard(weekId, query) {
     if (!v.isWeekId(weekId)) return bad(400, 'bad_week', 'Invalid week.');
     const limit = Math.min(Math.max(parseInt(query.limit, 10) || LEADERBOARD_DEFAULT, 1), LEADERBOARD_MAX);
     const [top, total] = await Promise.all([store.topScores(weekId, limit), store.countScores(weekId)]);
-    const entries = top.map((e, i) => ({ rank: rankFor(top, i), name: e.name, score: e.score }));
+    const entries = top.map((e, i) => ({ rank: rankFor(top, i), name: e.name, score: e.score, ref: e.ref }));
     const payload = { ok: true, weekId, total, entries };
     if (v.isDeviceId(query.deviceId)) {
       const mine = await store.getScore(weekId, query.deviceId);
-      if (mine) payload.you = { name: mine.name, score: mine.score, rank: await store.rankOf(weekId, mine.score) };
+      if (mine) payload.you = { name: mine.name, score: mine.score, ref: mine.ref, rank: await store.rankOf(weekId, mine.score) };
     }
     return respond(200, payload);
   }
@@ -106,6 +121,8 @@ function createHandler(deps) {
   async function postGroup(body) {
     const denied = await authenticate(body);
     if (denied) return denied;
+    const blocked = await banned(body);
+    if (blocked) return blocked;
     for (let attempt = 0; attempt < 6; attempt++) {
       const code = v.randomGroupCode(randomInt);
       if (await store.createGroup({ code, owner: body.deviceId, createdAt: now() })) {
@@ -121,6 +138,8 @@ function createHandler(deps) {
   async function joinGroup(code, body) {
     const denied = await authenticate(body);
     if (denied) return denied;
+    const blocked = await banned(body);
+    if (blocked) return blocked;
     if (!v.isGroupCode(code)) return bad(400, 'bad_code', 'Invalid group code.');
     if (!(await store.getGroup(code))) return bad(404, 'no_group', 'No group with that code.');
     const members = await store.listMembers(code);
@@ -137,8 +156,27 @@ function createHandler(deps) {
     if (!v.isWeekId(weekId)) return bad(400, 'bad_week', 'Invalid week.');
     if (!(await store.getGroup(code))) return bad(404, 'no_group', 'No group with that code.');
     const [scores, members] = await Promise.all([store.groupScores(code, weekId), store.listMembers(code)]);
-    const entries = scores.map((e, i) => ({ rank: rankFor(scores, i), name: e.name, score: e.score }));
+    const entries = scores.map((e, i) => ({ rank: rankFor(scores, i), name: e.name, score: e.score, ref: e.ref }));
     return respond(200, { ok: true, code, weekId, members: members.length, entries });
+  }
+
+  /* Report an entry. Anyone joined can report; three distinct reporters hide the entry
+     automatically, without waiting for a human. */
+  async function postReport(body) {
+    const denied = await authenticate(body);
+    if (denied) return denied;
+    if (typeof body.ref !== 'string' || !/^[0-9a-f]{12}$/.test(body.ref)) return bad(400, 'bad_ref', 'Invalid entry.');
+    const reporterRef = refOf(body.deviceId);
+    if (body.ref === reporterRef) return bad(400, 'self_report', 'You cannot report yourself.');
+    const target = await store.getRefInfo(body.ref);
+    if (!target) return bad(404, 'no_entry', 'That entry is no longer on the leaderboard.');
+    const reason = REPORT_REASONS.includes(body.reason) ? body.reason : 'name';
+    const weekId = v.isWeekId(body.weekId) ? body.weekId : null;
+    const result = await store.addReport({
+      ref: body.ref, reporterRef, reporterDevice: body.deviceId, reason, weekId, ts: now()
+    });
+    if (result.count >= REPORT_HIDE_THRESHOLD) await store.hideRef(body.ref);
+    return respond(200, { ok: true });
   }
 
   async function postDelete(body) {
@@ -148,7 +186,7 @@ function createHandler(deps) {
     return respond(200, { ok: true });
   }
 
-  return async function handler(event) {
+  async function route(event) {
     try {
       const method = ((event.requestContext && event.requestContext.http && event.requestContext.http.method) || event.httpMethod || '').toUpperCase();
       const path = (event.rawPath || event.path || '').replace(/\/+$/, '') || '/';
@@ -169,6 +207,7 @@ function createHandler(deps) {
         if (path === '/v1/scores') return await postScore(parsed.value);
         if (path === '/v1/groups') return await postGroup(parsed.value);
         if (path === '/v1/delete') return await postDelete(parsed.value);
+        if (path === '/v1/report') return await postReport(parsed.value);
         if ((m = path.match(/^\/v1\/groups\/([^/]+)\/join$/))) return await joinGroup(decodeURIComponent(m[1]), parsed.value);
       }
       return bad(404, 'not_found', 'Unknown route.');
@@ -176,7 +215,41 @@ function createHandler(deps) {
       log('leaderboard handler error', error);
       return bad(500, 'server_error', 'Something went wrong.');
     }
+  }
+
+  /* CORS. The iOS app's WebView origin is capacitor://localhost, which API Gateway's own CORS
+     setting rejects, so it is handled here. Only origins on the allow-list get the header; a
+     request without an Origin (the smoke test, curl) gets none. */
+  function requestOrigin(event) {
+    const headers = event.headers || {};
+    for (const name of Object.keys(headers)) if (name.toLowerCase() === 'origin') return headers[name];
+    return '';
+  }
+
+  return async function handler(event) {
+    const origin = requestOrigin(event);
+    const method = ((event.requestContext && event.requestContext.http && event.requestContext.http.method) || event.httpMethod || '').toUpperCase();
+    const allowed = origin && allowedOrigins.has(origin);
+    const cors = allowed ? {
+      'access-control-allow-origin': origin,
+      'vary': 'Origin'
+    } : { 'vary': 'Origin' };
+
+    if (method === 'OPTIONS') {
+      return {
+        statusCode: allowed ? 204 : 403,
+        headers: allowed ? {
+          ...cors,
+          'access-control-allow-methods': 'GET, POST, OPTIONS',
+          'access-control-allow-headers': 'content-type',
+          'access-control-max-age': '3600'
+        } : { 'vary': 'Origin' },
+        body: ''
+      };
+    }
+    const response = await route(event);
+    return { ...response, headers: { ...response.headers, ...cors } };
   };
 }
 
-module.exports = { createHandler, GROUP_MAX_MEMBERS };
+module.exports = { createHandler, GROUP_MAX_MEMBERS, REPORT_HIDE_THRESHOLD, refOf };

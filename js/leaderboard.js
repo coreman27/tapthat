@@ -13,6 +13,7 @@
 
   var TIMEOUT_MS = 8000;
   var MAX_LOCAL_GROUPS = 5;
+  var MAX_BLOCKED = 200;
 
   function config() { return global.LeaderboardConfig || {}; }
   function enabled() { return typeof config().apiBase === 'string' && /^https:\/\//.test(config().apiBase); }
@@ -93,6 +94,7 @@
     if (!(run.score >= 1)) return Promise.reject(makeError('no_score', 0, 'Nothing to submit.'));
     var body = Object.assign(credentials(), { name: run.name, weekId: run.weekId, score: run.score, rounds: run.rounds });
     return request('POST', '/v1/scores', body).then(function (res) {
+      if (res.ref) Store.setLb({ myRef: res.ref });
       var pending = Store.lb.pending;
       if (pending && pending.weekId === run.weekId && pending.score <= run.score) Store.setLb({ pending: null });
       return res;
@@ -118,7 +120,26 @@
 
   function board(weekId) {
     return request('GET', '/v1/weeks/' + encodeURIComponent(weekId) + '/leaderboard',
-      null, { limit: 25, deviceId: isOptedIn() ? Store.lb.deviceId : null });
+      null, { limit: 25, deviceId: isOptedIn() ? Store.lb.deviceId : null }).then(function (data) {
+      if (data.you && data.you.ref) Store.setLb({ myRef: data.you.ref });
+      return data;
+    });
+  }
+
+  // ---- reporting and hiding other players (user-generated names) ----
+  function blockedRefs() { return (Store.lb.blocked || []).slice(); }
+  function isBlocked(ref) { return (Store.lb.blocked || []).indexOf(ref) !== -1; }
+  function block(ref) {
+    if (typeof ref !== 'string' || !/^[0-9a-f]{12}$/.test(ref) || isBlocked(ref)) return;
+    Store.setLb({ blocked: blockedRefs().concat([ref]).slice(-MAX_BLOCKED) });
+  }
+  function unblockAll() { Store.setLb({ blocked: [] }); }
+
+  // Reports the entry and hides it from this device straight away, even if the network fails.
+  function report(ref, weekId, reason) {
+    block(ref);
+    if (!isOptedIn()) return Promise.reject(makeError('not_opted_in', 0, 'Join the leaderboard first.'));
+    return request('POST', '/v1/report', Object.assign(credentials(), { ref: ref, weekId: weekId, reason: reason || 'name' }));
   }
 
   // ---- friend groups ----
@@ -153,12 +174,12 @@
   function deleteMyData() {
     var lb = Store.lb;
     if (!lb.deviceId || !lb.deviceKey) {
-      Store.setLb({ optIn: false, groups: [], pending: null });
+      Store.setLb({ optIn: false, groups: [], pending: null, blocked: [], myRef: '' });
       return Promise.resolve({ ok: true });
     }
     return request('POST', '/v1/delete', credentials()).then(function (res) {
       // only forget locally once the server confirmed, so a failed delete can be retried
-      Store.setLb({ optIn: false, deviceId: '', deviceKey: '', groups: [], pending: null });
+      Store.setLb({ optIn: false, deviceId: '', deviceKey: '', groups: [], pending: null, blocked: [], myRef: '' });
       return res;
     });
   }
@@ -175,6 +196,11 @@
     groupBoard: groupBoard,
     normalizeCode: normalizeCode,
     deleteMyData: deleteMyData,
+    report: report,
+    block: block,
+    isBlocked: isBlocked,
+    blockedRefs: blockedRefs,
+    unblockAll: unblockAll,
     isTransient: isTransient
   };
 })(window);

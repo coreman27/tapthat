@@ -28,7 +28,7 @@
       // weekly challenge: only the current week is kept; { id, best, plays }
       weekly: { id: '', best: 0, plays: 0 },
       // optional online leaderboard (js/leaderboard.js). Nothing is created or sent until optIn.
-      lb: { optIn: false, deviceId: '', deviceKey: '', groups: [], pending: null }
+      lb: { optIn: false, deviceId: '', deviceKey: '', groups: [], pending: null, blocked: [], myRef: '' }
     };
   }
 

@@ -12,4 +12,6 @@ const doc = lib.DynamoDBDocumentClient.from(new DynamoDBClient({}), {
   marshallOptions: { removeUndefinedValues: true }
 });
 
-exports.handler = createHandler({ store: createDynamoStore({ doc, cmd: lib, table }) });
+const allowedOrigins = (process.env.ALLOWED_ORIGINS || '').split(',').map((o) => o.trim()).filter(Boolean);
+
+exports.handler = createHandler({ store: createDynamoStore({ doc, cmd: lib, table }), allowedOrigins });

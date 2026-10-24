@@ -1,4 +1,5 @@
 'use strict';
+const assert = require('node:assert/strict');
 /* fake-dynamo.js — a minimal DynamoDB document-client fake for testing store-dynamo.js.
  * It understands only the expressions the store uses, and it deliberately paginates
  * (2 items per page) and returns unprocessed batch items so retry/paging code is exercised. */
@@ -17,6 +18,21 @@ const cmd = {
   BatchWriteCommand: class BatchWriteCommand extends Command {}
 };
 
+// Real DynamoDB rejects reserved words (name, ttl, hidden, ...) used bare in an expression. Rather
+// than guess the full list, enforce the safe rule: every non-key attribute must go through an
+// #alias. Key attributes are never reserved words.
+const SAFE_BARE = new Set(['pk', 'sk', 'gsi1pk', 'gsi1sk', 'gsi2pk', 'gsi2sk']);
+const SYNTAX = new Set(['attribute_not_exists', 'attribute_exists', 'begins_with', 'size', 'and', 'or', 'not', 'set', 'remove']);
+function assertAliased(expression, label) {
+  if (!expression) return;
+  const bare = (expression.replace(/#\w+/g, ' ').replace(/:\w+/g, ' ').match(/[A-Za-z_][A-Za-z0-9_]*/g) || [])
+    .filter((w) => !SYNTAX.has(w.toLowerCase()) && !SAFE_BARE.has(w));
+  if (bare.length) {
+    throw new Error('ValidationException: ' + label + ' uses unaliased attribute name(s) ' + bare.join(', ') +
+      ' (real DynamoDB rejects reserved words such as name, ttl, hidden; alias with ExpressionAttributeNames)');
+  }
+}
+
 function conditionError() {
   const e = new Error('The conditional request failed');
   e.name = 'ConditionalCheckFailedException';
@@ -33,7 +49,8 @@ function createFakeDynamo(table) {
     const cond = input.ConditionExpression;
     if (cond === 'attribute_not_exists(pk)') {
       if (existing) throw conditionError();
-    } else if (cond === 'attribute_not_exists(pk) OR score < :score') {
+    } else if (cond === 'attribute_not_exists(pk) OR #s < :score') {
+      assert.equal((input.ExpressionAttributeNames || {})['#s'], 'score');
       if (existing && !(existing.score < input.ExpressionAttributeValues[':score'])) throw conditionError();
     } else if (cond) {
       throw new Error('fake does not support condition: ' + cond);
@@ -43,33 +60,42 @@ function createFakeDynamo(table) {
   }
 
   function query(input) {
-    const v = input.ExpressionAttributeValues;
+    const v = input.ExpressionAttributeValues || {};
     const expr = input.KeyConditionExpression;
     let rows;
     let sortAttr;
     if (!input.IndexName) {
-      assertExpr(expr, 'pk = :p AND begins_with(sk, :s)');
-      rows = [...items.values()].filter((i) => i.pk === v[':p'] && i.sk.startsWith(v[':s']));
       sortAttr = 'sk';
+      if (expr === 'pk = :p AND begins_with(sk, :s)') rows = [...items.values()].filter((i) => i.pk === v[':p'] && i.sk.startsWith(v[':s']));
+      else if (expr === 'pk = :p') rows = [...items.values()].filter((i) => i.pk === v[':p']);
+      else throw new Error('fake does not support key condition: ' + expr);
     } else if (input.IndexName === 'byScore') {
       sortAttr = 'gsi1sk';
       rows = [...items.values()].filter((i) => i.gsi1pk === v[':p']);
       if (expr === 'gsi1pk = :p AND gsi1sk >= :s') rows = rows.filter((i) => i.gsi1sk >= v[':s']);
       else assertExpr(expr, 'gsi1pk = :p');
     } else if (input.IndexName === 'byDevice') {
-      assertExpr(expr, 'gsi2pk = :d');
       sortAttr = 'gsi2sk';
       rows = [...items.values()].filter((i) => i.gsi2pk === v[':d']);
+      if (expr === 'gsi2pk = :d AND begins_with(gsi2sk, :s)') rows = rows.filter((i) => i.gsi2sk.startsWith(v[':s']));
+      else assertExpr(expr, 'gsi2pk = :d');
     } else {
       throw new Error('unknown index ' + input.IndexName);
     }
     rows.sort((a, b) => (a[sortAttr] < b[sortAttr] ? -1 : a[sortAttr] > b[sortAttr] ? 1 : 0));
     if (input.ScanIndexForward === false) rows.reverse();
-    if (input.Limit) return { Items: rows.slice(0, input.Limit).map((r) => ({ ...r })), Count: Math.min(rows.length, input.Limit) };
 
+    // Like DynamoDB: a page reads `size` items FIRST, then the filter drops some of them.
+    const size = input.Limit || PAGE;
     const start = input.ExclusiveStartKey || 0; // simple offset paging
-    const page = rows.slice(start, start + PAGE);
-    const next = start + PAGE < rows.length ? start + PAGE : undefined;
+    const read = rows.slice(start, start + size);
+    const next = start + size < rows.length ? start + size : undefined;
+    let page = read;
+    if (input.FilterExpression) {
+      assertExpr(input.FilterExpression, 'attribute_not_exists(#h)');
+      assert.equal((input.ExpressionAttributeNames || {})['#h'], 'hidden');
+      page = read.filter((i) => i.hidden === undefined);
+    }
     return input.Select === 'COUNT'
       ? { Count: page.length, LastEvaluatedKey: next }
       : { Items: page.map((r) => ({ ...r })), Count: page.length, LastEvaluatedKey: next };
@@ -84,13 +110,26 @@ function createFakeDynamo(table) {
       calls.send++;
       const input = command.input;
       if (input.TableName && input.TableName !== table) throw new Error('wrong table');
+      assertAliased(input.ConditionExpression, 'ConditionExpression');
+      assertAliased(input.FilterExpression, 'FilterExpression');
+      assertAliased(input.UpdateExpression, 'UpdateExpression');
+      assertAliased(input.KeyConditionExpression, 'KeyConditionExpression');
       if (command instanceof cmd.PutCommand) return put(input);
       if (command instanceof cmd.GetCommand) { const it = items.get(k(input.Key)); return it ? { Item: { ...it } } : {}; }
       if (command instanceof cmd.UpdateCommand) {
-        assertExpr(input.UpdateExpression, 'SET #n = :n');
-        const it = items.get(k(input.Key));
-        if (it) it.name = input.ExpressionAttributeValues[':n'];
-        return {};
+        // supports: SET a = :x, #n = :y, ...  (upserts, like DynamoDB's UpdateItem)
+        const m = input.UpdateExpression.match(/^SET (.+)$/);
+        if (!m) throw new Error('fake does not support update: ' + input.UpdateExpression);
+        const names = input.ExpressionAttributeNames || {};
+        const vals = input.ExpressionAttributeValues || {};
+        let it = items.get(k(input.Key));
+        if (input.ConditionExpression === 'attribute_exists(pk)' && !it) throw conditionError();
+        if (!it) { it = { ...input.Key }; items.set(k(input.Key), it); }
+        for (const part of m[1].split(',')) {
+          const [lhs, rhs] = part.split('=').map((x) => x.trim());
+          it[names[lhs] || lhs] = vals[rhs];
+        }
+        return input.ReturnValues === 'ALL_NEW' ? { Attributes: { ...it } } : {};
       }
       if (command instanceof cmd.QueryCommand) return query(input);
       if (command instanceof cmd.BatchGetCommand) {

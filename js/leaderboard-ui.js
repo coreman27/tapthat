@@ -24,6 +24,10 @@
     el('btn-lb-joincode').addEventListener('click', joinWithCode);
     el('btn-lb-share-code').addEventListener('click', shareGroup);
     el('btn-lb-delete').addEventListener('click', deleteData);
+    el('btn-sheet-report').addEventListener('click', reportTarget);
+    el('btn-sheet-hide').addEventListener('click', hideTarget);
+    el('btn-sheet-cancel').addEventListener('click', closeSheet);
+    el('btn-lb-unhide').addEventListener('click', unhideAll);
     global.addEventListener('online', function () { Leaderboard.flushPending(); });
     Leaderboard.flushPending();
   }
@@ -39,12 +43,22 @@
 
   function open(from) {
     returnTo = from || 'home';
-    if (!Leaderboard.isOptedIn()) { UI.show('lb-optin'); return; }
+    if (!Leaderboard.isOptedIn()) {
+      el('lb-name-input').value = Store.name || '';
+      UI.show('lb-optin');
+      return;
+    }
     UI.show('lb');
     setTab(tab);
   }
 
   function join() {
+    // The player picks how they appear. It is also their name on the home screen.
+    var chosen = (el('lb-name-input').value || '').replace(/\s+/g, ' ').trim().slice(0, 14);
+    if (!chosen) { UI.toast('Pick a name to show on the leaderboard.'); return; }
+    Store.setName(chosen);
+    var home = el('playerName');
+    if (home) home.value = chosen;
     Leaderboard.optIn();
     Leaderboard.flushPending();
     el('btn-join-lb').classList.add('hidden');
@@ -86,24 +100,90 @@
     });
   }
 
+  /* Which rows to show: drops players this device has hidden, and marks the player's own
+     row (which can be neither reported nor hidden). Pure, so it is unit-tested. */
+  function visibleEntries(data, blocked, myRef) {
+    var set = {};
+    (blocked || []).forEach(function (ref) { set[ref] = true; });
+    var you = data && data.you ? data.you : null;
+    var own = myRef || (you && you.ref) || '';
+    var rows = [];
+    var hiddenCount = 0;
+    ((data && data.entries) || []).forEach(function (entry) {
+      var mine = !!own && entry.ref === own;
+      if (!mine && entry.ref && set[entry.ref]) { hiddenCount += 1; return; }
+      rows.push({ entry: entry, mine: mine, reportable: !mine && !!entry.ref });
+    });
+    return { rows: rows, hiddenCount: hiddenCount };
+  }
+
+  var lastData = null;
+  var sheetTarget = null;
+
   function renderEntries(data) {
+    lastData = data;
     var list = el('lb-list');
     list.innerHTML = '';
+    var view = visibleEntries(data, Leaderboard.blockedRefs(), Store.lb.myRef);
     var you = data.you || null;
-    (data.entries || []).forEach(function (entry) {
+    view.rows.forEach(function (row) {
       var li = document.createElement('li');
-      if (you && entry.rank === you.rank && entry.name === you.name && entry.score === you.score) li.className = 'me';
-      [['rk', '#' + entry.rank], ['nm', entry.name], ['sc', String(entry.score)]].forEach(function (pair) {
+      var cls = [];
+      if (row.mine) cls.push('me');
+      if (row.reportable) cls.push('tappable');
+      li.className = cls.join(' ');
+      [['rk', '#' + row.entry.rank], ['nm', row.entry.name], ['sc', String(row.entry.score)]].forEach(function (pair) {
         var span = document.createElement('span');
         span.className = pair[0];
         span.textContent = pair[1]; // names are user content: textContent only, never innerHTML
         li.appendChild(span);
       });
+      if (row.reportable) li.addEventListener('click', function () { openSheet(row.entry); });
       list.appendChild(li);
     });
-    if (!(data.entries || []).length) setStatus('No scores yet this week. Be the first!');
+    el('lb-hidden-count').textContent = view.hiddenCount;
+    el('lb-hidden-note').classList.toggle('hidden', view.hiddenCount === 0);
+    if (!view.rows.length) setStatus((data.entries || []).length ? 'Everyone here is hidden.' : 'No scores yet this week. Be the first!');
     else if (tab === 'global' && you) setStatus('You are #' + you.rank + ' of ' + data.total + '.');
     else setStatus('');
+  }
+
+  function openSheet(entry) {
+    sheetTarget = entry;
+    el('lb-sheet-title').textContent = entry.name;
+    el('lb-sheet').classList.remove('hidden');
+  }
+
+  function closeSheet() {
+    sheetTarget = null;
+    el('lb-sheet').classList.add('hidden');
+  }
+
+  function reportTarget() {
+    var target = sheetTarget;
+    closeSheet();
+    if (!target) return;
+    // Hidden on this device at once; the server hides it for everyone after enough reports.
+    Leaderboard.report(target.ref, Weekly.weekId(), 'name').then(function () {
+      UI.toast('Thanks. We will review it, and the name is hidden for you.', 3500);
+    }, function (error) {
+      UI.toast(Leaderboard.isTransient(error) ? 'Hidden for you. The report will not reach us while offline.' : 'Hidden for you.', 3500);
+    });
+    if (lastData) renderEntries(lastData);
+  }
+
+  function hideTarget() {
+    var target = sheetTarget;
+    closeSheet();
+    if (!target) return;
+    Leaderboard.block(target.ref);
+    UI.toast('Hidden. You can show everyone again below.', 3000);
+    if (lastData) renderEntries(lastData);
+  }
+
+  function unhideAll() {
+    Leaderboard.unblockAll();
+    if (lastData) renderEntries(lastData);
   }
 
   function guard(fn) {
@@ -172,5 +252,5 @@
     });
   }
 
-  global.LeaderboardUI = { init: init, afterWeeklyRun: afterWeeklyRun, refreshEntry: refreshEntry };
+  global.LeaderboardUI = { init: init, afterWeeklyRun: afterWeeklyRun, refreshEntry: refreshEntry, visibleEntries: visibleEntries };
 })(window);
