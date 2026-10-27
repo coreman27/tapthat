@@ -85,6 +85,12 @@
     return plugin.loadBoard({ id: IDS[which], scope: scope === 'friends' ? 'friends' : 'global', count: count || 10 })
       .then(function (raw) {
         var data = normalize(raw);
+        if (which === 'weekly' && global.console) {
+          // One line in the Xcode console, to see what Game Center reports for the weekly board.
+          global.console.log('[GameCenter] weekly board: recurring=' + data.recurring +
+            ' period=' + (data.period ? new Date(data.period.start).toISOString() + '..' + new Date(data.period.end).toISOString() : 'none') +
+            ' rows=' + data.entries.length + ' you=' + (data.you ? '#' + data.you.rank : 'none') + ' source=' + global.Weekly.source());
+        }
         if (which === 'weekly' && data.period && global.Weekly.setPeriod(data.period.start, data.period.end)) publish();
         return data;
       }, function (error) {
