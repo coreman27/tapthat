@@ -29,9 +29,9 @@ const scenes = [
   { file: '03-game-over.png', js:
       'document.getElementById("final-score").textContent=47;document.getElementById("final-best").textContent=47;' +
       'document.getElementById("over-reason").textContent="Too slow.";' +
-      'var nb=document.getElementById("new-best");nb.classList.remove("hidden");UI.show("over");' },
+      'UI.show("over");var nb=document.getElementById("new-best");nb.textContent="NEW BEST!";nb.classList.remove("hidden");nb.style.animation="none";' },
   { file: '04-challenge-a-friend.png', js:
-      'document.getElementById("challenge-title").textContent="Sam survived 31 commands.";UI.show("challenge");' }
+      'document.getElementById("challenge-title").textContent="Sam survived 31 rounds.";UI.show("challenge");' }
 ];
 
 // Pretend the App Store is reachable and the themes are for sale, as on a real device.
@@ -61,7 +61,9 @@ const html = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
 for (const scene of run) {
   const base = '<base href="file://' + root + '/">';
   const safe = '<style>:root{--safe-t:59px;--safe-b:34px} #splash{display:none !important}</style>';
-  const page = html.replace('<head>', '<head>' + base + safe)
+  // A returning player, saved before the app loads, so the home screen's player card shows a name and a best.
+  const player = '<script>try{localStorage.setItem("dtt.v1",JSON.stringify({name:"Corey",best:52,games:12}))}catch(e){}</script>';
+  const page = html.replace('<head>', '<head>' + base + safe + player)
     .replace('</body>', '<script>setTimeout(function(){' + scene.js + '},120)</script></body>');
   const inner = path.join(tmp, scene.file + '.html');
   const outer = path.join(tmp, scene.file + '.outer.html');
