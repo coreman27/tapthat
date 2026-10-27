@@ -16,3 +16,6 @@ store-screenshots/
 # Logs
 *.log
 npm-debug.log*
+
+# Archives and upload logs from scripts/testflight.sh
+build/

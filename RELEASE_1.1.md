@@ -1,6 +1,6 @@
 # DON'T TAP THAT 1.1.0 — release checklist
 
-Branch `release/1.1`. Version **1.1.0 (build 13)**, real AdMob app + interstitial IDs, test ads off.
+Branch `release/1.1`. Version **1.1.0** (build number goes up on every upload; see Submit), real AdMob app + interstitial IDs, test ads off.
 A Release archive that still uses Google test IDs is refused by the build
 (`MONETIZATION_REQUIRE_PRODUCTION_ADS`). Don't edit these IDs on any other branch: development
 builds stay on test ads so the simulator never serves real ads.
@@ -78,9 +78,12 @@ approved, leaderboards work in development builds once they exist in App Store C
 
 ## Submit (App Store Connect)
 
-1. **Archive** in Xcode: scheme **App**, destination **Any iOS Device**, Product > Archive, Distribute App >
-   App Store Connect > Upload.
-2. Create **version 1.1.0**; select **build 13** once processed.
+1. **Upload** (same rules as Tableside: the build number goes up on every upload; builds come from pushed `main`):
+   `cd ~/Source/tapthat && ./scripts/testflight.sh`. It bumps the build, runs the tests, syncs the web app into iOS,
+   archives, uploads with the App Store Connect API key, then commits and pushes the bump. If App Store Connect
+   already has that number, rerun with `--build <next>`. (Build 15 is already uploaded, so the next is 16.)
+   No "Missing Compliance" question any more: Info.plist declares no non-exempt encryption.
+2. Create **version 1.1.0**; select the newest build once processed.
 3. **What's New**, description, keywords: `STORE_LISTING.md`. Mention the Game Center leaderboards and the weekly board.
 4. **Screenshots**: `store-screenshots/6.9-inch/*.png` in order (the first is the iMessage link preview).
    Regenerate with `node scripts/store-screenshots.js` if you want the new home screen in them.
