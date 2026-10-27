@@ -344,7 +344,9 @@ console.log('\n4) Adaptive selection + timing');
 (function () {
   for (var s = 0; s <= 50; s += 5) {
     var def = W.Adaptive.pickNext(s, null);
-    assert(def && s >= def.minScore, 'score ' + s + ': picks unlocked challenge (' + def.id + ')');
+    // Returning players' opening rounds (score < 3) draw from every basic, regardless of minScore.
+    var openingBasic = s < 3 && def && def.minScore < 3;
+    assert(def && (s >= def.minScore || openingBasic), 'score ' + s + ': picks unlocked challenge (' + def.id + ')');
     var t = W.Adaptive.timeLimit(def, s);
     assert(t <= def.baseTime && t >= def.minTime, 'score ' + s + ': timeLimit within bounds');
   }

@@ -58,7 +58,10 @@ weight = 1 + failRate * 4 + min(fails, 6) * 0.35
 
 Categories: `tap, wait, color, sequence, gesture, size, reflex, stroop, find, distractor`.
 
-- Early game (score < 3) is pinned to basics so new players learn the loop.
+- Early game (score < 3) is pinned to basics so new players learn the loop. A brand-new player (no stats yet)
+  gets the unlock order — `TAP ME`, then `DON'T TAP ME`. Everyone else, and every weekly run, draws the opening
+  from all three basics (`TAP ME`, `DON'T TAP ME`, `TAP <COLOR>`), weighted by their fails, so runs don't open
+  the same way and the learning shows from round one.
 - Immediate repeats are avoided.
 - Result: someone who chokes on color gets ~3–5× more color challenges; someone who chokes on `WAIT` gets buried in `DON'T` commands. The game's implied personality: *"I know you can't resist tapping."*
 

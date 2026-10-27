@@ -19,10 +19,27 @@
 
   // opts.fixed: ignore the player's fail history so everyone gets the same selection odds
   // (weekly mode). opts.rand: random source (a seeded generator in weekly mode).
+  function isBasic(d) {
+    return d.category === 'tap' || d.category === 'wait' || d.category === 'color';
+  }
+
+  // Has this player ever been dealt a command? Brand-new players get the gentle unlock order.
+  function hasHistory() {
+    var stats = Store.stats || {};
+    return Object.keys(stats).some(function (k) { return stats[k] && stats[k].plays > 0; });
+  }
+
   function pickNext(score, lastId, opts) {
     var rand = (opts && opts.rand) || Math.random;
     var fixed = !!(opts && opts.fixed);
     var pool = unlocked(score);
+
+    // Opening rounds for anyone past their first game (and every weekly run): all of the basics
+    // are in play from round one, weighted by what this player fails, so a run doesn't always
+    // open TAP ME -> DON'T TAP ME.
+    if (score < 3 && (fixed || hasHistory())) {
+      pool = Challenges.DEFS.filter(function (d) { return isBasic(d) && d.minScore < 3; });
+    }
     if (pool.length === 0) pool = [Challenges.DEFS[0]];
 
     // avoid immediate repeat when we can
@@ -31,9 +48,7 @@
 
     // Early game: keep it gentle & mostly the basics so players learn the loop
     if (score < 3) {
-      var basics = candidates.filter(function (d) {
-        return d.category === 'tap' || d.category === 'wait' || d.category === 'color';
-      });
+      var basics = candidates.filter(isBasic);
       if (basics.length) candidates = basics;
     }
 
