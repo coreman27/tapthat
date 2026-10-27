@@ -10,11 +10,12 @@
     "assets": "npm run icons && npm run splash && cp icons/icon-1024.png assets/icon.png && npx capacitor-assets generate --ios",
     "www": "node scripts/sync-www.js",
     "serve": "node scripts/serve.js",
-    "test": "node scripts/smoke-test.js && node --test scripts/monetization.test.js scripts/ad-policy.test.js scripts/weekly.test.js scripts/themes.test.js scripts/gamecenter.test.js scripts/continue.test.js scripts/tap-rules.test.js scripts/release.test.js scripts/home.test.js scripts/web-retirement.test.js && npm --prefix server test",
+    "test": "node scripts/smoke-test.js && node --test scripts/monetization.test.js scripts/ad-policy.test.js scripts/weekly.test.js scripts/themes.test.js scripts/gamecenter.test.js scripts/continue.test.js scripts/tap-rules.test.js scripts/release.test.js scripts/home.test.js scripts/web-retirement.test.js",
     "ios:add": "npm run www && npx cap add ios",
     "sync": "npm run www && npx cap sync",
     "ios": "npm run www && npx cap sync ios && npx cap open ios",
-    "testflight": "./scripts/testflight.sh"
+    "testflight": "./scripts/testflight.sh",
+    "test:server": "npm --prefix server test"
   },
   "dependencies": {
     "@capacitor/core": "^6.1.2",
