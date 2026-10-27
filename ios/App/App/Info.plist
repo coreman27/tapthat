@@ -25,7 +25,7 @@
 	<key>CFBundleVersion</key>
 	<string>$(CURRENT_PROJECT_VERSION)</string>
 	<key>GADApplicationIdentifier</key>
-	<string>ca-app-pub-5271085014646391~9020995888</string>
+	<string>ca-app-pub-1849830561309008~5918341314</string>
 	<key>GADDelayAppMeasurementInit</key>
 	<true/>
 	<key>LSRequiresIPhoneOS</key>
@@ -33,7 +33,7 @@
 	<key>MonetizationAdsEnabled</key>
 	<true/>
 	<key>MonetizationInterstitialAdUnitID</key>
-	<string>ca-app-pub-5271085014646391/6654601274</string>
+	<string>ca-app-pub-1849830561309008/5362973394</string>
 	<key>MonetizationRemoveAdsProductID</key>
 	<string>com.coreyhall.donttapthat.removeads</string>
 	<key>MonetizationRewardedAdUnitID</key>
