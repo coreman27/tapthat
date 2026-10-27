@@ -43,7 +43,7 @@
 
         <button id="btn-lb" class="card-btn lb-preview hidden">
           <span class="cb-main">
-            <strong>This week's leaderboard</strong>
+            <strong>Leaderboard</strong>
             <span id="lbp-list" class="lbp-list"></span>
             <span id="lbp-footer" class="weekly-line"></span>
           </span>
@@ -113,7 +113,6 @@
         <button id="btn-again" class="big-btn primary">Try Again</button>
         <button id="btn-continue" class="big-btn ghost hidden"><span id="continue-title">Continue?</span><small id="continue-sub"></small></button>
         <button id="btn-share" class="big-btn ghost">Challenge a Friend</button>
-        <button id="btn-join-lb" class="link-btn hidden">Join the weekly leaderboard</button>
         <button id="btn-home" class="link-btn">Home</button>
         <button id="btn-over-store" class="link-btn hidden">Remove ads</button>
       </div>
@@ -143,61 +142,41 @@
       </div>
     </section>
 
-    <section id="screen-lb-optin" class="screen">
+    <!-- WEEKLY CHALLENGE: its own menu, with this week's board, before you play -->
+    <section id="screen-weekly" class="screen">
       <div class="home-inner store-inner">
-        <h2 class="chal-title">Weekly leaderboard</h2>
-        <p class="tagline">Compete with other players on the same weekly commands.</p>
-        <div class="name-row">
-          <label for="lb-name-input">Show me as</label>
-          <input id="lb-name-input" type="text" maxlength="14" placeholder="Pick a name" autocomplete="off" spellcheck="false" />
+        <h2 class="chal-title">Weekly Challenge</h2>
+        <p id="wk-when" class="weekly-line"></p>
+        <p class="tagline">Same commands for everyone this week. Your best run counts.</p>
+        <div class="wk-stats">
+          <span class="wk-stat"><span class="hud-label">Your best</span><strong id="wk-best">&mdash;</strong></span>
+          <span id="wk-plays" class="weekly-line">Not played yet</span>
         </div>
-        <p class="purchase-status" id="lb-privacy-copy">Other players will see this name and your weekly score, along with a random anonymous ID that is not linked to you. No account, no email, no tracking. Please don't use your real name. You can delete everything anytime from the leaderboard screen.</p>
-        <p class="purchase-status" id="lb-rules-copy">Keep names friendly. Offensive names are removed and repeat offenders are blocked. You can report or hide any name.</p>
-        <button id="btn-lb-join" class="big-btn primary">Join</button>
-        <button id="btn-lb-nothanks" class="link-btn">Not now</button>
-        <a class="link-btn" href="https://hallsoftwaresolutions.com/dont-tap-that/privacy/">Privacy Policy</a>
+        <button id="btn-wk-play" class="big-btn primary">Play this week&rsquo;s challenge</button>
+        <div class="lb-tabs">
+          <button id="wk-tab-global" class="link-btn lb-tab active">Everyone</button>
+          <button id="wk-tab-friends" class="link-btn lb-tab">Friends</button>
+        </div>
+        <ol id="wk-list" class="lb-list"></ol>
+        <p id="wk-status" class="purchase-status" role="status"></p>
+        <button id="btn-wk-gc" class="link-btn">Open in Game Center</button>
+        <button id="btn-wk-back" class="big-btn ghost">Back</button>
       </div>
     </section>
 
+    <!-- ALL-TIME LEADERBOARD -->
     <section id="screen-lb" class="screen">
       <div class="home-inner store-inner">
         <h2 class="chal-title">Leaderboard</h2>
-        <p id="lb-week" class="weekly-line"></p>
+        <p class="weekly-line">All-time best scores. Names come from Game Center.</p>
         <div class="lb-tabs">
           <button id="lb-tab-global" class="link-btn lb-tab active">Everyone</button>
           <button id="lb-tab-friends" class="link-btn lb-tab">Friends</button>
         </div>
-        <div id="lb-join-banner" class="lb-join hidden">
-          <span>Join to post your score and play with friends.</span>
-          <button id="btn-lb-joinbar" class="link-btn">Join</button>
-        </div>
         <ol id="lb-list" class="lb-list"></ol>
         <p id="lb-status" class="purchase-status" role="status"></p>
-        <p id="lb-hidden-note" class="purchase-status hidden"><span id="lb-hidden-count">0</span> hidden · <button id="btn-lb-unhide" class="link-btn">Show all</button></p>
-        <div id="lb-friends-join" class="lb-join hidden">
-          <span>Friend groups need you to join first. It takes a few seconds.</span>
-          <button id="btn-lb-friends-join" class="link-btn">Join</button>
-        </div>
-        <div id="lb-friends" class="lb-friends hidden">
-          <p id="lb-group-code" class="weekly-line"></p>
-          <button id="btn-lb-share-code" class="link-btn hidden">Share this group</button>
-          <button id="btn-lb-create" class="big-btn ghost">New Friend Group</button>
-          <div class="name-row">
-            <input id="lb-code-input" type="text" maxlength="9" placeholder="Group code" autocomplete="off" autocapitalize="characters" spellcheck="false" />
-            <button id="btn-lb-joincode" class="link-btn">Join</button>
-          </div>
-        </div>
+        <button id="btn-lb-gc" class="link-btn">Open in Game Center</button>
         <button id="btn-lb-back" class="big-btn ghost">Back</button>
-        <button id="btn-lb-delete" class="link-btn">Delete my leaderboard data</button>
-        <a id="lb-contact" class="link-btn" href="mailto:support@hallsoftwaresolutions.com?subject=DON%27T%20TAP%20THAT%20leaderboard">Report a problem</a>
-      </div>
-      <div id="lb-sheet" class="sheet hidden" role="dialog" aria-modal="true" aria-labelledby="lb-sheet-title">
-        <div class="sheet-card">
-          <p id="lb-sheet-title" class="sheet-title">Player</p>
-          <button id="btn-sheet-report" class="big-btn ghost">Report this name</button>
-          <button id="btn-sheet-hide" class="big-btn ghost">Hide this player</button>
-          <button id="btn-sheet-cancel" class="link-btn">Cancel</button>
-        </div>
       </div>
     </section>
 
@@ -259,10 +238,9 @@
   <script src="js/storage.js"></script>
   <script src="js/audio.js"></script>
   <script src="js/weekly.js"></script>
+  <script src="js/gamecenter.js"></script>
   <script src="js/themes.js"></script>
   <script src="js/share.js"></script>
-  <script src="js/leaderboard-config.js"></script>
-  <script src="js/leaderboard.js"></script>
   <script src="js/challenges.js"></script>
   <script src="js/adaptive.js"></script>
   <script src="js/engine.js"></script>

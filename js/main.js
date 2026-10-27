@@ -83,6 +83,7 @@
 
   function refreshWeekly() {
     el('weekly-line').textContent = weeklyStatus();
+    LeaderboardUI.renderWeeklyInfo();
   }
 
   var previewing = null; // a locked theme being tried; never saved
@@ -281,12 +282,9 @@
       versus.classList.add('hidden');
     }
 
-    if (weeklyId && !assisted) {
-      LeaderboardUI.afterWeeklyRun({ weekId: weeklyId, score: score, rounds: payload.rounds || [], name: playerName() });
-    } else {
-      el('over-rank').classList.add('hidden');
-      el('btn-join-lb').classList.add('hidden');
-    }
+    // Posts the run to Game Center (when it beats what Apple has) and shows the standing.
+    if (!assisted) LeaderboardUI.afterRun({ weeklyId: weeklyId, score: score });
+    else el('over-rank').classList.add('hidden');
 
     var offer = assisted ? null : continueOfferFor(score, weeklyId);
     continueOffer = offer ? { token: gameOverToken, score: score } : null;
@@ -399,7 +397,7 @@
     el('btn-store').classList.toggle('hidden', !state.supported);
     el('btn-over-store').classList.toggle('hidden', !state.supported || state.adsRemoved);
     [
-      'btn-play', 'btn-weekly', 'btn-again', 'btn-continue', 'btn-theme-buy', 'btn-theme-restore', 'btn-share', 'btn-home', 'btn-how', 'btn-how-back',
+      'btn-play', 'btn-weekly', 'btn-wk-play', 'btn-again', 'btn-continue', 'btn-theme-buy', 'btn-theme-restore', 'btn-share', 'btn-home', 'btn-how', 'btn-how-back',
       'btn-accept', 'btn-skip-challenge', 'btn-store', 'btn-over-store', 'btn-store-back'
     ].forEach(function (id) { el(id).disabled = state.busy || transitioning; });
     el('btn-remove-ads').disabled = state.busy || transitioning || !state.ready || state.adsRemoved ||
@@ -483,7 +481,7 @@
   function wire() {
     el('btn-play').addEventListener('click', startGame);
     el('btn-again').addEventListener('click', function () { leaveGameOver(replay); });
-    el('btn-weekly').addEventListener('click', startWeekly);
+    el('btn-weekly').addEventListener('click', function () { LeaderboardUI.openWeekly(); });
     el('btn-continue').addEventListener('click', doContinue);
     el('btn-share').addEventListener('click', doShare);
     el('btn-home').addEventListener('click', function () {
@@ -572,10 +570,14 @@
     // Ownership is unknown until StoreKit reports it, so show the saved theme on trust and
     // reconcile later. Never rewrite the saved choice here: that would downgrade paying players.
     Themes.applyTrusted(Store.theme);
-    LeaderboardUI.init({ playerName: playerName, onNameChanged: function () { renderPlayer(true); } });
+    LeaderboardUI.init({ startWeekly: startWeekly });
 
     renderPlayer(false);
-    UI.onShow = function (id) { if (id === 'home') LeaderboardUI.refreshPreview(); };
+    UI.onShow = function (id) { if (id === 'home') { LeaderboardUI.refreshPreview(); refreshWeekly(); } };
+    // Game Center: sign in, then post any best score Apple doesn't have yet (including the high
+    // score from before this version). A new weekly period from Apple re-draws the week line.
+    GameCenter.onChange(refreshWeekly);
+    GameCenter.init();
     refreshBest();
     refreshWeekly();
     wire();

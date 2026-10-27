@@ -77,7 +77,7 @@ html, body {
 .name-row,
 .card-btn,
 .player-card,
-.lb-join,
+.wk-stats,
 .glass-list,
 .instruction,
 .score-block,
@@ -105,7 +105,7 @@ html, body {
   padding: calc(var(--safe-t) + 16px) 20px calc(var(--safe-b) + 16px);
 }
 .screen.active { display: flex; }
-#screen-home, #screen-over, #screen-how, #screen-store, #screen-themes, #screen-lb, #screen-lb-optin { overflow-y: auto; }
+#screen-home, #screen-over, #screen-how, #screen-store, #screen-themes, #screen-lb, #screen-weekly { overflow-y: auto; }
 
 .home-inner {
   margin: auto;
@@ -141,7 +141,7 @@ html, body {
   border-radius: 14px;
 }
 .name-row label { color: var(--muted); font-size: 16px; white-space: nowrap; }
-#playerName, #lb-code-input, #lb-name-input {
+#playerName {
   flex: 1;
   min-width: 0;
   height: 100%;
@@ -152,8 +152,7 @@ html, body {
   text-align: right;
   outline: none;
 }
-#lb-code-input { text-align: left; }
-#playerName::placeholder, #lb-code-input::placeholder, #lb-name-input::placeholder { color: var(--muted); opacity: 0.7; }
+#playerName::placeholder { color: var(--muted); opacity: 0.7; }
 
 /* ---------- Buttons ---------- */
 .big-btn {
@@ -448,11 +447,16 @@ button:disabled:active { transform: none; filter: none; opacity: 0.45; }
 .lb-list .rk { width: 2.2em; color: var(--muted); }
 .lb-list .nm { flex: 1; min-width: 0; text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .lb-list .sc { font-weight: 700; }
-.lb-friends { width: 100%; max-width: 360px; display: flex; flex-direction: column; gap: 10px; align-items: center; }
+/* The player's own row, added after a gap when they rank below the rows shown */
+.lb-list li.gap { margin-top: 10px; }
 
-/* Leaderboard rows are tappable (report / hide) and a bottom sheet offers the actions */
-.lb-list li.tappable { cursor: pointer; }
-.lb-list li.tappable:active { background: var(--glass-strong); }
+/* Weekly Challenge: your best this week, above the Play button */
+.wk-stats { display: flex; align-items: center; justify-content: space-between; gap: 12px; width: 100%; max-width: 360px; padding: 12px 16px; border-radius: 16px; }
+.wk-stat { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; }
+.wk-stat strong { font-size: 26px; line-height: 1.1; font-variant-numeric: tabular-nums; }
+.wk-stats .weekly-line { margin: 0; text-align: right; }
+
+/* A sheet (bottom card over a dim backdrop) */
 .sheet { position: absolute; inset: 0; z-index: 40; display: flex; align-items: flex-end; justify-content: center;
   padding: 0 16px calc(var(--safe-b) + 16px); background: rgba(0, 0, 0, 0.45); }
 .sheet-card { width: 100%; max-width: 360px; display: flex; flex-direction: column; align-items: center; gap: 10px;
@@ -492,9 +496,6 @@ button:disabled:active { transform: none; filter: none; opacity: 0.45; }
 .lbp-row.me .nm, .lbp-row.me .sc { color: var(--link); }
 .lbp-list:empty { display: none; }
 
-/* A gentle prompt on the leaderboard screen: viewing is open, posting needs joining */
-.lb-join { display: flex; align-items: center; justify-content: space-between; gap: 10px; width: 100%; max-width: 360px; padding: 10px 14px; border-radius: 14px; font-size: 14px; color: var(--muted); text-align: left; }
-.lb-join .link-btn { font-weight: 650; padding: 4px 8px; }
 
 /* The name sheet sits near the top so the keyboard never covers it */
 .sheet.sheet-top { align-items: flex-start; padding: calc(var(--safe-t) + 70px) 16px 0; }

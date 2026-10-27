@@ -46,7 +46,8 @@ async function game(options = {}) {
     Weekly: { weekId: () => '2026-W40', msUntilReset: () => 1e8, resetLabel: () => '1d', isWeekId: () => true },
     Themes: { LIST: [], enabled: () => false, available: () => false, previewAll: () => false, apply: (i) => i, applyTrusted: (i) => i,
       preview: (i) => i, resolve: (i) => i, canUse: () => true, find: () => null, ownership: () => 'free' },
-    LeaderboardUI: { init() {}, afterWeeklyRun() {}, refreshPreview() {} },
+    LeaderboardUI: { init() {}, afterRun() {}, refreshPreview() {}, openWeekly() {}, renderWeeklyInfo() {} },
+    GameCenter: { init() {}, onChange() {} },
     navigator: {}, location: { protocol: 'capacitor:' }
   });
   vm.runInContext(source('storage'), f.context);
