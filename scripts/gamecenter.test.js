@@ -96,7 +96,7 @@ test('board data is cleaned up: malformed rows dropped, names kept as plain text
   assert.equal(data.entries[0].name, '<b>x</b>', 'text, rendered with textContent');
   assert.equal(data.total, 2, 'never smaller than the rows we have');
   assert.equal(data.period, null);
-  assert.deepEqual(plain(GameCenter.normalize(undefined)), { entries: [], you: null, total: 0, period: null });
+  assert.deepEqual(plain(GameCenter.normalize(undefined)), { entries: [], you: null, total: 0, period: null, recurring: false });
 });
 
 // ---------- the weekly challenge follows Apple, and changes every Monday ----------
@@ -379,6 +379,25 @@ test('a weekly board that has not opened yet says when it opens, and nothing is 
   p.Store.recordWeekly('2026-W45', 12);
   await p.GameCenter.sync();
   assert.equal(p.gc.scoreOf('weekly'), 12);
+});
+
+test('a weekly board Apple gives no dates for yet still says it is not open, never "No scores yet"', async () => {
+  const p = gamePhone({ storage: saved({ weekly: { id: '2026-W44', best: 26, plays: 2 } }), period: null });
+  await p.GameCenter.init();
+  p.ui.init({});
+  p.ui.openWeekly();
+  await tick();
+  assert.equal(p.el('wk-status').textContent, 'The weekly leaderboard isn’t open yet. Runs are ranked once it opens.');
+  assert.equal(p.el('wk-best').textContent, '26');
+  await p.ui.afterRun({ weeklyId: '2026-W44', score: 26 });
+  assert.equal(p.el('over-rank').textContent, 'The weekly leaderboard isn’t open yet.');
+});
+
+test('the plugin reads the first, upcoming week too (Apple may give only the next start date)', () => {
+  const swift = read('ios/App/App/GameCenterPlugin.swift');
+  assert.match(swift, /if let next = board\.nextStartDate, next > now \{ return \(next, next\.addingTimeInterval\(length\)\) \}/);
+  assert.match(swift, /if let next = board\.nextStartDate, next > start \{ return \(start, next\) \}/, 'never a zero-length period');
+  assert.match(swift, /result\["recurring"\] = true/);
 });
 
 // ---------- the app is wired for Game Center ----------

@@ -110,10 +110,13 @@ public final class GameCenterPlugin: CAPPlugin, CAPBridgedPlugin, GKGameCenterCo
                     range: NSRange(location: 1, length: count))
                 var result: [String: Any] = ["entries": entries.map(self.row), "total": total]
                 if let local { result["you"] = self.row(local) }
-                // A recurring leaderboard's current period: the weekly challenge follows it.
-                if board.type == .recurring, let start = board.startDate {
-                    let end = board.nextStartDate ?? start.addingTimeInterval(board.duration)
-                    result["period"] = ["start": start.timeIntervalSince1970 * 1000, "end": end.timeIntervalSince1970 * 1000]
+                // A recurring leaderboard's current (or first, upcoming) period: the weekly challenge
+                // follows it. Before its first period starts, Apple may give only the next start date.
+                if board.type == .recurring {
+                    result["recurring"] = true
+                    if let period = self.period(of: board) {
+                        result["period"] = ["start": period.start.timeIntervalSince1970 * 1000, "end": period.end.timeIntervalSince1970 * 1000]
+                    }
                 }
                 call.resolve(result)
             } catch FriendsAccess.denied {
@@ -122,6 +125,17 @@ public final class GameCenterPlugin: CAPPlugin, CAPBridgedPlugin, GKGameCenterCo
                 call.reject(error.localizedDescription, "load_failed", error)
             }
         }
+    }
+
+    private func period(of board: GKLeaderboard) -> (start: Date, end: Date)? {
+        let length = board.duration > 0 ? board.duration : 7 * 24 * 3600
+        let now = Date()
+        if let start = board.startDate {
+            if let next = board.nextStartDate, next > start { return (start, next) }
+            return (start, start.addingTimeInterval(length))
+        }
+        if let next = board.nextStartDate, next > now { return (next, next.addingTimeInterval(length)) }
+        return nil
     }
 
     private func row(_ entry: GKLeaderboard.Entry) -> [String: Any] {

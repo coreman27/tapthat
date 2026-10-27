@@ -53,7 +53,7 @@ function fakeGameCenter(options = {}) {
       const you = all.find((r) => r.mine);
       // Like Apple: a signed-in player with no score still gets a placeholder entry (rank 0, score 0).
       result.you = you || { rank: 0, score: 0, name: me, mine: true };
-      if (id === IDS.weekly && period) result.period = { ...period };
+      if (id === IDS.weekly) { result.recurring = true; if (period) result.period = { ...period }; }
       return result;
     },
     async showLeaderboard({ id }) { calls.show.push(id); }

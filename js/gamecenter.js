@@ -75,7 +75,7 @@
     var you = row(raw.you);
     var period = raw.period && typeof raw.period.start === 'number' && typeof raw.period.end === 'number'
       ? { start: raw.period.start, end: raw.period.end } : null;
-    return { entries: entries, you: you, total: Math.max(raw.total | 0, entries.length), period: period };
+    return { entries: entries, you: you, total: Math.max(raw.total | 0, entries.length), period: period, recurring: raw.recurring === true };
   }
 
   // which: 'best' | 'weekly'; scope: 'global' | 'friends'
@@ -91,6 +91,9 @@
         throw makeError((error && error.code) || 'load_failed', (error && error.message) || 'Could not load the leaderboard.');
       });
   }
+
+  // A weekly board with no open week: Apple gave no current period (not started yet).
+  function notOpen(data) { return data.recurring && global.Weekly.source() !== 'apple'; }
 
   function submit(which, score) {
     return plugin.submitScore({ score: score, leaderboardIDs: [IDS[which]] });
@@ -137,7 +140,7 @@
     if (!state.authenticated) return Promise.resolve({ status: 'signed_out' });
     return sync().then(function () { return board(which, 'global', 1); }).then(function (data) {
       if (data.you) return { status: 'ranked', rank: data.you.rank, total: data.total };
-      if (which === 'weekly' && global.Weekly.upcoming()) return { status: 'not_open', opens: global.Weekly.upcoming() };
+      if (which === 'weekly' && (global.Weekly.upcoming() || notOpen(data))) return { status: 'not_open', opens: global.Weekly.upcoming() };
       return { status: 'offline' };
     }, function () { return { status: 'offline' }; });
   }
@@ -156,6 +159,7 @@
     sync: sync,
     afterRun: afterRun,
     show: show,
-    normalize: normalize
+    normalize: normalize,
+    notOpen: notOpen
   };
 })(window);

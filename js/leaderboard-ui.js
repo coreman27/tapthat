@@ -38,8 +38,9 @@
     catch (e) { return new Date(ms).toDateString(); }
   }
 
-  function boardStatus(data, scope, opens) {
+  function boardStatus(data, scope, opens, notOpen) {
     if (opens && !data.entries.length) return 'The weekly leaderboard opens ' + openingDay(opens) + '. Runs from then on are ranked.';
+    if (notOpen && !data.entries.length) return 'The weekly leaderboard isn\u2019t open yet. Runs are ranked once it opens.';
     if (!data.entries.length) return scope === 'friends' ? 'None of your Game Center friends have a score here yet.' : 'No scores yet. Be the first!';
     if (data.you) return 'You are #' + data.you.rank + ' of ' + data.total + '.';
     return 'Play a round to get on the board.';
@@ -93,7 +94,9 @@
       return global.GameCenter.board(which, scope, BOARD_ROWS).then(function (data) {
         if (mine !== seq) return;
         boardRows(data).forEach(function (r) { list.appendChild(row(r, 'li')); });
-        el(ids.status).textContent = boardStatus(data, scope, which === 'weekly' ? global.Weekly.upcoming() : null);
+        el(ids.status).textContent = which === 'weekly'
+          ? boardStatus(data, scope, global.Weekly.upcoming(), global.GameCenter.notOpen(data))
+          : boardStatus(data, scope);
       }, function (error) {
         if (mine !== seq) return;
         el(ids.status).textContent = failureText(error);
@@ -180,7 +183,7 @@
     line.textContent = 'Posting your score…';
     return global.GameCenter.afterRun(which).then(function (result) {
       if (result.status === 'ranked') line.textContent = (which === 'weekly' ? 'Weekly rank #' : 'All-time rank #') + result.rank + ' of ' + result.total;
-      else if (result.status === 'not_open') line.textContent = 'The weekly leaderboard opens ' + openingDay(result.opens) + '.';
+      else if (result.status === 'not_open') line.textContent = result.opens ? 'The weekly leaderboard opens ' + openingDay(result.opens) + '.' : 'The weekly leaderboard isn\u2019t open yet.';
       else line.textContent = 'Saved. It posts to Game Center when you’re back online.';
       previewAt = 0; // the home card shows the new standing when you get back
     });
