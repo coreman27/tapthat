@@ -106,4 +106,8 @@ say "Step 5: delete the old game files (everything except sw.js)"
 run aws s3 rm "s3://$BUCKET/" --recursive --exclude "sw.js"
 
 echo
-echo "Done. The web version is retired. donttapthat.com now forwards to $NEW_BASE/"
+if [ "$DRY" = 1 ]; then
+  echo "Dry run complete. Nothing was changed. Run again without --dry-run to retire the web version."
+else
+  echo "Done. The web version is retired. donttapthat.com now forwards to $NEW_BASE/"
+fi
