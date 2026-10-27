@@ -460,13 +460,13 @@
     if (incoming.weekId && incoming.weekId !== Weekly.weekId()) {
       // That weekly sequence is over; scores from it can't be matched this week.
       UI.show('home');
-      UI.toast('That weekly challenge has ended. This week has new commands!', 5000);
+      UI.toast('That weekly challenge has ended. This week has new rounds!', 5000);
       return true;
     }
     challenger = incoming;
     el('challenge-title').textContent = incoming.weekId
-      ? incoming.name + ' survived ' + incoming.score + ' commands in this week’s challenge.'
-      : incoming.name + ' survived ' + incoming.score + ' commands.';
+      ? incoming.name + ' survived ' + incoming.score + ' rounds in this week’s challenge.'
+      : incoming.name + ' survived ' + incoming.score + ' rounds.';
     UI.show('challenge');
     return true;
   }

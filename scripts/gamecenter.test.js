@@ -266,7 +266,7 @@ test('the Weekly Challenge has its own screen: week, time left, your best, this 
   p.ui.openWeekly();
   await tick();
   assert.equal(p.shown.at(-1), 'weekly');
-  assert.equal(p.el('wk-when').textContent, 'Week 44 • New commands in ' + p.Weekly.resetLabel(period.end - NOW));
+  assert.equal(p.el('wk-when').textContent, 'Week 44 • New rounds in ' + p.Weekly.resetLabel(period.end - NOW));
   assert.equal(p.el('wk-best').textContent, '14');
   assert.equal(p.el('wk-plays').textContent, '3 runs this week');
   assert.deepEqual(rowsOf(p.el('wk-list')), [['#1', 'Speedy', '33'], ['#2', 'Sam', '18'], ['#3', 'Me', '14']]);
@@ -287,7 +287,7 @@ test('the Weekly Challenge screen before playing this week, and when signed out'
   assert.equal(p.el('wk-best').textContent, '—');
   assert.equal(p.el('wk-plays').textContent, 'Not played yet');
   assert.match(p.el('wk-status').textContent, /Sign in to Game Center/);
-  assert.match(p.el('wk-when').textContent, /^Week 44 • New commands in /);
+  assert.match(p.el('wk-when').textContent, /^Week 44 • New rounds in /);
 });
 
 // ---------- after a run ----------

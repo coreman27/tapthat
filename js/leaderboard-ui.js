@@ -47,7 +47,7 @@
   }
 
   function weekLine(id, msLeft) {
-    return 'Week ' + parseInt(id.split('-W')[1], 10) + ' • New commands in ' + global.Weekly.resetLabel(msLeft);
+    return 'Week ' + parseInt(id.split('-W')[1], 10) + ' • New rounds in ' + global.Weekly.resetLabel(msLeft);
   }
 
   function failureText(error) {

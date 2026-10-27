@@ -88,8 +88,8 @@
   function share(name, score, weekId) {
     var webUrl = buildUrl(name, score, weekId);
     var text = weekId
-      ? (name || 'I') + ' survived ' + score + ' commands in the DON\u2019T TAP THAT weekly challenge (' + weekId + '). Same commands for everyone \u2014 can you beat that?'
-      : (name || 'I') + ' survived ' + score + ' commands in DON\u2019T TAP THAT. Can you beat that?';
+      ? (name || 'I') + ' survived ' + score + ' rounds in the DON\u2019T TAP THAT weekly challenge (' + weekId + '). Same rounds for everyone \u2014 can you beat that?'
+      : (name || 'I') + ' survived ' + score + ' rounds in DON\u2019T TAP THAT. Can you beat that?';
 
     // Native iOS/Android: open the real system share sheet (Copy, Messages, etc.).
     // Send friends to the App Store (never the web build). The App Store URL can't

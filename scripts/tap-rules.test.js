@@ -293,8 +293,11 @@ test('difficulty ramps 10% slower: it peaks at ~50, and every timer is a little 
 
 test('How to play explains the new rules', () => {
   const html = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
-  assert.match(html, /<li>One clean tap\. Missing the button, double-tapping, or holding a tap ends the run\.<\/li>/);
-  assert.match(html, /<li>When it says <b>HOLD<\/b>, hold until the bar fills\.<\/li>/);
+  // Shorter since 2026-10-27, same rules: a miss, a double tap or a held tap ends the run; HOLD fills the bar.
+  assert.match(html, /<li>One clean tap\. Miss, double-tap or hold too long and you're out\.<\/li>/);
+  assert.match(html, /<li><b>HOLD<\/b> means hold until the bar fills\.<\/li>/);
+  const how = html.match(/<section id="screen-how"[\s\S]*?<\/section>/)[0];
+  assert.doesNotMatch(how, /command/i, 'rounds, not commands');
 });
 
 // ---------- haptics: iPhone has no navigator.vibrate, so the native plugin is used ----------
