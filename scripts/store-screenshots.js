@@ -4,6 +4,10 @@
  *   (the review screenshot App Store Connect asks for on each theme in-app purchase).
  *   node scripts/store-screenshots.js --marketing  ->  store-screenshots/marketing/raw/*.png, the screens
  *   behind the header and search-results images (then scripts/appstore-marketing.sh).
+ *   node scripts/store-screenshots.js --ipad  ->  store-screenshots/ipad-13/*.png at 2064x2752 (iPad 13"),
+ *   the same scenes as the iPhone set.
+ *   node scripts/store-screenshots.js --iphone63  ->  store-screenshots/iphone-6.3/*.png at 1206x2622, the size App
+ *   Store Connect's "iPhone with Dynamic Island (medium display)" slot asks for (it shows no 6.9" slot, Oct 2026).
  * The FIRST screenshot is also what Apple uses for the iMessage link preview, so it is a
  * bold game round that stays readable at thumbnail size.
  * Needs Google Chrome (macOS). Run: node scripts/store-screenshots.js
@@ -15,10 +19,16 @@ const cp = require('child_process');
 const root = path.join(__dirname, '..');
 const IAP = process.argv.includes('--iap');
 const MARKETING = process.argv.includes('--marketing');
-const outDir = path.join(root, 'store-screenshots', IAP ? 'iap-review' : MARKETING ? 'marketing/raw' : '6.9-inch');
+const IPAD = process.argv.includes('--ipad');
+const IPHONE63 = process.argv.includes('--iphone63');
+const outDir = path.join(root, 'store-screenshots', IAP ? 'iap-review' : MARKETING ? 'marketing/raw' : IPAD ? 'ipad-13' : IPHONE63 ? 'iphone-6.3' : '6.9-inch');
 const tmp = fs.mkdtempSync(path.join(require('os').tmpdir(), 'dtt-shots-'));
 const CHROME = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
-const W = 440, H = 956, SCALE = 3; // 1320 x 2868
+// iPhone 6.9" is 440x956 pt at 3x (1320 x 2868); iPad 13" is 1032x1376 pt at 2x (2064 x 2752).
+// iPhone 6.3" is 402x874 pt at 3x (1206 x 2622).
+const W = IPAD ? 1032 : IPHONE63 ? 402 : 440, H = IPAD ? 1376 : IPHONE63 ? 874 : 956, SCALE = IPAD ? 2 : 3;
+// Safe areas: the Dynamic Island band on iPhone; on iPad the status bar is hidden, so only the home indicator.
+const SAFE_T = IPAD ? 24 : 59, SAFE_B = IPAD ? 20 : 34;
 
 // A command with several colored buttons reads well even as a small thumbnail.
 const pick = (id) => 'Adaptive.pickNext=function(){return Challenges.DEFS.find(function(d){return d.id==="' + id + '"})};';
@@ -60,7 +70,7 @@ fs.mkdirSync(outDir, { recursive: true });
 const html = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
 for (const scene of run) {
   const base = '<base href="file://' + root + '/">';
-  const safe = '<style>:root{--safe-t:59px;--safe-b:34px} #splash{display:none !important}</style>';
+  const safe = '<style>:root{--safe-t:' + SAFE_T + 'px;--safe-b:' + SAFE_B + 'px} #splash{display:none !important}</style>';
   // A returning player, saved before the app loads, so the home screen's player card shows a name and a best.
   const player = '<script>try{localStorage.setItem("dtt.v1",JSON.stringify({name:"Corey",best:52,games:12}))}catch(e){}</script>';
   const page = html.replace('<head>', '<head>' + base + safe + player)
