@@ -114,17 +114,25 @@ resets at the same moment (Monday 00:00 UTC). Fairness rules:
 - The weekly best is stored separately (`Store.weeklyBest`) and resets each week.
   Layout positions scale to the screen size, but the commands and timing match.
 
-Optional online leaderboards and friend groups live in `server/` (Lambda + DynamoDB,
-see `server/README.md`) with an opt-in client in `js/leaderboard.js` and
-`js/leaderboard-ui.js`. The feature is **off** while `LeaderboardConfig.apiBase` in
-`js/leaderboard-config.js` is empty, so nothing is shown or sent until the backend is
-deployed and the URL is set. Enabling it requires updated privacy answers (see the
-server README).
+Leaderboards use **Apple Game Center** (`js/gamecenter.js` + the native
+`ios/App/App/GameCenterPlugin.swift`; screens in `js/leaderboard-ui.js`). Two boards are set up
+in App Store Connect: `com.coreyhall.donttapthat.best` (classic, all-time) and
+`com.coreyhall.donttapthat.weekly` (recurring, one week). The app:
+
+- signs in at launch and posts any best score Apple hasn't accepted yet, including the high
+  score from before 1.1, retrying until it is accepted (offline or signed-out runs catch up);
+- reads the weekly board's current period from Apple and hands it to `Weekly.setPeriod`, so
+  the weekly commands change when Apple's board rolls over (cached for offline play; without it
+  the week changes at Monday 00:00 UTC). The week id is the ISO week of the period's midpoint;
+- shows the all-time board on Home, the weekly board on the Weekly Challenge screen (before you
+  play), and your new rank after each run. Outside the iOS app it all stays hidden.
+
+`server/` is the earlier self-hosted leaderboard (Lambda + DynamoDB). The app no longer uses it.
 
 Sharing a weekly score uses the same `#c=` link with an extra `w` field. A friend
 who opens it in the same week plays that sequence and gets a head-to-head result;
 after the week ends the link just says it has ended. Scores are local and shared by
-link only, so they are not verified. Shared leaderboards need a backend (roadmap Phase 4).
+link only, so they are not verified.
 
 ### Design system
 
@@ -261,8 +269,8 @@ score-aware timing is implemented; Rewarded Continue is still planned.
 - [x] Configurable score-aware ad timing and opt-in local replay diagnostics
 - [ ] Retention-tested interstitial cadence (candidate: every 4-6 terminal runs)
 - [ ] Cosmetic theme shop and game personality packs
-- [ ] Game Center / cloud best scores
+- [x] Game Center leaderboards: all-time and weekly (Apple's recurring board drives the weekly rollover); existing best scores synced
 - [x] Weekly challenge: seeded sequence, weekly best, share-link head-to-head (no backend)
-- [x] Weekly leaderboards and friend groups: backend, client and UI built and tested; **not deployed** (needs `terraform apply`, the API URL in config, and updated privacy answers)
+- [x] ~~Self-hosted weekly leaderboards and friend groups~~ replaced by Game Center in 1.1 (code kept in `server/`)
 - [ ] Seasonal tournaments & family competitions
 - [ ] Season Pass evaluation after fair weekly events prove retention

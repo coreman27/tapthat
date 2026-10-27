@@ -1,324 +1,194 @@
-/* leaderboard-ui.js — screens and wiring for the optional weekly leaderboard.
- * Everything here is inert unless Leaderboard.enabled() (an https API URL is configured). */
+/* leaderboard-ui.js — the leaderboard card on Home, the all-time leaderboard screen, and the
+ * Weekly Challenge screen (its own board, your best, time left, and Play), all backed by
+ * Game Center (js/gamecenter.js). Outside the iOS app the cards stay hidden. */
 (function (global) {
   'use strict';
 
   var el = function (id) { return document.getElementById(id); };
-  var deps = { playerName: function () { return 'Player'; }, onNameChanged: function () {} };
-  var tab = 'global';
-  var activeGroup = null;
+  var deps = { startWeekly: function () {} };
   var returnTo = 'home';
-  var busy = false;
+  var PREVIEW_ROWS = 3;
+  var BOARD_ROWS = 25;
 
-  function init(options) {
-    deps = Object.assign(deps, options || {});
-    refreshEntry();
-    el('btn-lb').addEventListener('click', function () { open('home'); });
-    el('btn-lb-joinbar').addEventListener('click', function () { goJoin(); });
-    el('btn-lb-friends-join').addEventListener('click', function () { goJoin(); });
-    global.document.addEventListener('visibilitychange', function () { if (!global.document.hidden) refreshPreview(); });
-    refreshPreview();
-    el('btn-join-lb').addEventListener('click', function () { open('over'); });
-    el('btn-lb-nothanks').addEventListener('click', function () { UI.show(returnTo); });
-    el('btn-lb-join').addEventListener('click', join);
-    el('btn-lb-back').addEventListener('click', function () { UI.show(returnTo); });
-    el('lb-tab-global').addEventListener('click', function () { setTab('global'); });
-    el('lb-tab-friends').addEventListener('click', function () { setTab('friends'); });
-    el('btn-lb-create').addEventListener('click', createGroup);
-    el('btn-lb-joincode').addEventListener('click', joinWithCode);
-    el('btn-lb-share-code').addEventListener('click', shareGroup);
-    el('btn-lb-delete').addEventListener('click', deleteData);
-    el('btn-sheet-report').addEventListener('click', reportTarget);
-    el('btn-sheet-hide').addEventListener('click', hideTarget);
-    el('btn-sheet-cancel').addEventListener('click', closeSheet);
-    el('btn-lb-unhide').addEventListener('click', unhideAll);
-    global.addEventListener('online', function () { Leaderboard.flushPending(); });
-    Leaderboard.flushPending();
-  }
+  /* ---- pure: what to show, so it is unit-tested ---- */
 
-  function refreshEntry() {
-    el('btn-lb').classList.toggle('hidden', !Leaderboard.enabled());
-  }
-
-  function weekLabel() {
-    var id = Weekly.weekId();
-    return 'Week ' + parseInt(id.split('-W')[1], 10) + ' • resets in ' + Weekly.resetLabel(Weekly.msUntilReset());
-  }
-
-  /* The board is public: anyone can look without joining. Joining is only needed to post a
-     score, make or join friend groups. */
-  function open(from) {
-    returnTo = from || 'home';
-    UI.show('lb');
-    setTab(tab);
-  }
-
-  function goJoin() {
-    el('lb-name-input').value = Store.name || '';
-    UI.show('lb-optin');
-  }
-
-  function renderJoinState() {
-    var joined = Leaderboard.isOptedIn();
-    el('lb-join-banner').classList.toggle('hidden', joined);
-    el('btn-lb-delete').classList.toggle('hidden', !Store.lb.deviceId);
-  }
-
-  function join() {
-    // The player picks how they appear. It is also their name on the home screen.
-    var chosen = (el('lb-name-input').value || '').replace(/\s+/g, ' ').trim().slice(0, 14);
-    if (!chosen) { UI.toast('Pick a name to show on the leaderboard.'); return; }
-    Store.setName(chosen);
-    deps.onNameChanged();
-    Leaderboard.optIn();
-    Leaderboard.flushPending();
-    el('btn-join-lb').classList.add('hidden');
-    UI.show('lb');
-    setTab('global');
-    refreshPreview(true);
-  }
-
-  function setStatus(text) { el('lb-status').textContent = text || ''; }
-
-  function setTab(next) {
-    tab = next;
-    el('lb-tab-global').classList.toggle('active', tab === 'global');
-    el('lb-tab-friends').classList.toggle('active', tab === 'friends');
-    var joined = Leaderboard.isOptedIn();
-    el('lb-friends').classList.toggle('hidden', tab !== 'friends' || !joined);
-    el('lb-friends-join').classList.toggle('hidden', tab !== 'friends' || joined);
-    el('lb-week').textContent = weekLabel();
-    renderJoinState();
-    if (tab === 'friends' && joined) {
-      activeGroup = activeGroup || Store.lb.groups[0] || null;
-      renderGroupCode();
-    }
-    refresh();
-  }
-
-  function renderGroupCode() {
-    el('lb-group-code').textContent = activeGroup ? 'Group code: ' + activeGroup : 'Create a group or join one with a code.';
-    el('btn-lb-share-code').classList.toggle('hidden', !activeGroup);
-  }
-
-  function refresh() {
-    var weekId = Weekly.weekId();
-    var list = el('lb-list');
-    list.innerHTML = '';
-    if (tab === 'friends' && (!activeGroup || !Leaderboard.isOptedIn())) { setStatus(''); return; }
-    setStatus('Loading…');
-    var request = tab === 'global' ? Leaderboard.board(weekId) : Leaderboard.groupBoard(activeGroup, weekId);
-    request.then(function (data) {
-      renderEntries(data);
-    }, function (error) {
-      setStatus(error.code === 'network' ? 'Can’t reach the leaderboard. Check your connection.' : error.message);
-    });
-  }
-
-  /* ---- home screen preview: the top of this week's board, shown without joining ---- */
-  var previewAt = 0;
-  var previewBusy = false;
-
-  /* Pure: what the home card shows for a board response (or a failure). */
-  function previewModel(data, blocked, myRef) {
-    if (!data) return { state: 'error', rows: [], footer: 'Tap to see this week\u2019s leaderboard' };
-    var view = visibleEntries(data, blocked, myRef);
-    var rows = view.rows.slice(0, 3).map(function (r) { return { rank: r.entry.rank, name: r.entry.name, score: r.entry.score, mine: r.mine }; });
-    if (!rows.length) return { state: 'empty', rows: [], footer: 'No scores yet. Be the first this week!' };
-    var you = data.you || null;
-    var footer = you ? 'You are #' + you.rank + ' of ' + data.total : (data.total > rows.length ? data.total + ' players this week' : '');
+  // The home card (and any small preview) for a board, a failure, or a signed-out player.
+  function previewModel(data, gc) {
+    if (gc && !gc.checked) return { state: 'checking', rows: [], footer: 'Connecting to Game Center…' };
+    if (gc && !gc.authenticated) return { state: 'signed_out', rows: [], footer: 'Sign in to Game Center to see the top players' };
+    if (!data) return { state: 'error', rows: [], footer: 'Tap to see the leaderboard' };
+    var rows = data.entries.slice(0, PREVIEW_ROWS);
+    if (!rows.length) return { state: 'empty', rows: [], footer: 'No scores yet. Be the first!' };
+    var footer = data.you ? 'You are #' + data.you.rank + ' of ' + data.total
+      : 'Play a round to get on the board';
     return { state: 'ready', rows: rows, footer: footer };
   }
+
+  // The full list. When the player is ranked below the rows shown, their own row is added at
+  // the end so they can always find themselves.
+  function boardRows(data) {
+    var rows = data.entries.slice();
+    if (data.you && !rows.some(function (r) { return r.mine; })) rows.push(Object.assign({ gap: true }, data.you, { mine: true }));
+    return rows;
+  }
+
+  function boardStatus(data, scope) {
+    if (!data.entries.length) return scope === 'friends' ? 'None of your Game Center friends have a score here yet.' : 'No scores yet. Be the first!';
+    if (data.you) return 'You are #' + data.you.rank + ' of ' + data.total + '.';
+    return 'Play a round to get on the board.';
+  }
+
+  function weekLine(id, msLeft) {
+    return 'Week ' + parseInt(id.split('-W')[1], 10) + ' • New commands in ' + global.Weekly.resetLabel(msLeft);
+  }
+
+  function failureText(error) {
+    if (!error) return 'Can’t reach Game Center right now.';
+    if (error.code === 'not_authenticated') return 'Sign in to Game Center in Settings to see the leaderboard.';
+    if (error.code === 'friends_denied') return error.message;
+    return 'Can’t reach Game Center right now. Check your connection.';
+  }
+
+  /* ---- drawing ---- */
+
+  function row(r, tag, base) {
+    var line = document.createElement(tag);
+    line.className = [base, r.mine ? 'me' : '', r.gap ? 'gap' : ''].filter(Boolean).join(' ');
+    [['rk', '#' + r.rank], ['nm', r.name], ['sc', String(r.score)]].forEach(function (pair) {
+      var cell = document.createElement('span');
+      cell.className = pair[0];
+      cell.textContent = pair[1]; // other players' names: textContent only, never innerHTML
+      line.appendChild(cell);
+    });
+    return line;
+  }
+
+  // One board on one screen: Everyone/Friends tabs, the list, and a status line.
+  function boardView(ids, which) {
+    var scope = 'global';
+    var seq = 0;
+    function setScope(next) {
+      scope = next;
+      el(ids.global).classList.toggle('active', scope === 'global');
+      el(ids.friends).classList.toggle('active', scope === 'friends');
+      return load();
+    }
+    function load() {
+      var mine = ++seq;
+      var list = el(ids.list);
+      list.innerHTML = '';
+      var gc = global.GameCenter.getState();
+      if (!gc.authenticated) {
+        el(ids.status).textContent = gc.checked ? 'Sign in to Game Center in Settings to see the leaderboard.' : 'Connecting to Game Center…';
+        return Promise.resolve();
+      }
+      el(ids.status).textContent = 'Loading…';
+      return global.GameCenter.board(which, scope, BOARD_ROWS).then(function (data) {
+        if (mine !== seq) return;
+        boardRows(data).forEach(function (r) { list.appendChild(row(r, 'li')); });
+        el(ids.status).textContent = boardStatus(data, scope);
+      }, function (error) {
+        if (mine !== seq) return;
+        el(ids.status).textContent = failureText(error);
+      });
+    }
+    el(ids.global).addEventListener('click', function () { setScope('global'); });
+    el(ids.friends).addEventListener('click', function () { setScope('friends'); });
+    return { load: load, reset: function () { return setScope('global'); } };
+  }
+
+  var allTime, weekly;
+
+  /* ---- home card: the top of the all-time board ---- */
+  var previewAt = 0;
+  var previewBusy = false;
 
   function renderPreview(model) {
     var list = el('lbp-list');
     list.innerHTML = '';
-    model.rows.forEach(function (row) {
-      var line = document.createElement('span');
-      line.className = 'lbp-row' + (row.mine ? ' me' : '');
-      [['rk', '#' + row.rank], ['nm', row.name], ['sc', String(row.score)]].forEach(function (pair) {
-        var cell = document.createElement('span');
-        cell.className = pair[0];
-        cell.textContent = pair[1]; // names are user content: textContent only
-        line.appendChild(cell);
-      });
-      list.appendChild(line);
-    });
+    model.rows.forEach(function (r) { list.appendChild(row(r, 'span', 'lbp-row')); });
     el('lbp-footer').textContent = model.footer;
   }
 
-  // Throttled: at most one request a minute unless forced (e.g. right after joining or posting).
+  // Throttled: at most one request a minute unless forced (after a run, or on sign-in).
   function refreshPreview(force) {
-    if (!Leaderboard.enabled() || previewBusy) return;
-    if (!force && previewAt && Date.now() - previewAt < 60000) return;
+    var gc = global.GameCenter.getState();
+    el('btn-lb').classList.toggle('hidden', !gc.supported);
+    if (!gc.supported) return;
+    if (!gc.authenticated) { renderPreview(previewModel(null, gc)); return; }
+    if (previewBusy || (!force && previewAt && Date.now() - previewAt < 60000)) return;
     previewBusy = true;
-    if (!previewAt) el('lbp-footer').textContent = 'Loading this week\u2019s scores\u2026';
-    Leaderboard.board(Weekly.weekId()).then(function (data) {
+    if (!previewAt) el('lbp-footer').textContent = 'Loading the leaderboard…';
+    global.GameCenter.board('best', 'global', PREVIEW_ROWS).then(function (data) {
       previewAt = Date.now();
-      renderPreview(previewModel(data, Leaderboard.blockedRefs(), Store.lb.myRef));
+      renderPreview(previewModel(data, gc));
     }, function () {
-      renderPreview(previewModel(null));
+      renderPreview(previewModel(null, gc));
     }).then(function () { previewBusy = false; });
   }
 
-  /* Which rows to show: drops players this device has hidden, and marks the player's own
-     row (which can be neither reported nor hidden). Pure, so it is unit-tested. */
-  function visibleEntries(data, blocked, myRef) {
-    var set = {};
-    (blocked || []).forEach(function (ref) { set[ref] = true; });
-    var you = data && data.you ? data.you : null;
-    var own = myRef || (you && you.ref) || '';
-    var rows = [];
-    var hiddenCount = 0;
-    ((data && data.entries) || []).forEach(function (entry) {
-      var mine = !!own && entry.ref === own;
-      if (!mine && entry.ref && set[entry.ref]) { hiddenCount += 1; return; }
-      rows.push({ entry: entry, mine: mine, reportable: !mine && !!entry.ref });
-    });
-    return { rows: rows, hiddenCount: hiddenCount };
+  /* ---- the screens ---- */
+
+  function openAllTime(from) {
+    returnTo = from || 'home';
+    UI.show('lb');
+    allTime.reset();
   }
 
-  var lastData = null;
-  var sheetTarget = null;
-
-  function renderEntries(data) {
-    lastData = data;
-    var list = el('lb-list');
-    list.innerHTML = '';
-    var view = visibleEntries(data, Leaderboard.blockedRefs(), Store.lb.myRef);
-    var you = data.you || null;
-    view.rows.forEach(function (row) {
-      var li = document.createElement('li');
-      var cls = [];
-      if (row.mine) cls.push('me');
-      if (row.reportable) cls.push('tappable');
-      li.className = cls.join(' ');
-      [['rk', '#' + row.entry.rank], ['nm', row.entry.name], ['sc', String(row.entry.score)]].forEach(function (pair) {
-        var span = document.createElement('span');
-        span.className = pair[0];
-        span.textContent = pair[1]; // names are user content: textContent only, never innerHTML
-        li.appendChild(span);
-      });
-      if (row.reportable) li.addEventListener('click', function () { openSheet(row.entry); });
-      list.appendChild(li);
-    });
-    el('lb-hidden-count').textContent = view.hiddenCount;
-    el('lb-hidden-note').classList.toggle('hidden', view.hiddenCount === 0);
-    if (!view.rows.length) setStatus((data.entries || []).length ? 'Everyone here is hidden.' : 'No scores yet this week. Be the first!');
-    else if (tab === 'global' && you) setStatus('You are #' + you.rank + ' of ' + data.total + '.');
-    else setStatus('');
+  function renderWeeklyInfo() {
+    var id = global.Weekly.weekId();
+    el('wk-when').textContent = weekLine(id, global.Weekly.msUntilReset());
+    var best = global.Store.weeklyBest(id);
+    var plays = global.Store.weeklyPlays(id);
+    el('wk-best').textContent = best ? String(best) : '—';
+    el('wk-plays').textContent = plays ? plays + (plays === 1 ? ' run' : ' runs') + ' this week' : 'Not played yet';
   }
 
-  function openSheet(entry) {
-    sheetTarget = entry;
-    el('lb-sheet-title').textContent = entry.name;
-    el('lb-sheet').classList.remove('hidden');
+  function openWeekly() {
+    UI.show('weekly');
+    renderWeeklyInfo();
+    // Loading the weekly board also refreshes Apple's period, so the week line is re-drawn after.
+    weekly.reset().then(renderWeeklyInfo);
   }
 
-  function closeSheet() {
-    sheetTarget = null;
-    el('lb-sheet').classList.add('hidden');
+  function showInGameCenter(which) {
+    global.GameCenter.show(which).catch(function (error) { UI.toast(failureText(error), 3500); });
   }
 
-  function reportTarget() {
-    var target = sheetTarget;
-    closeSheet();
-    if (!target) return;
-    // Hidden on this device at once; the server hides it for everyone after enough reports.
-    Leaderboard.report(target.ref, Weekly.weekId(), 'name').then(function () {
-      UI.toast('Thanks. We will review it, and the name is hidden for you.', 3500);
-    }, function (error) {
-      UI.toast(Leaderboard.isTransient(error) ? 'Hidden for you. The report will not reach us while offline.' : 'Hidden for you.', 3500);
-    });
-    if (lastData) renderEntries(lastData);
-    refreshPreview(true);
-  }
-
-  function hideTarget() {
-    var target = sheetTarget;
-    closeSheet();
-    if (!target) return;
-    Leaderboard.block(target.ref);
-    UI.toast('Hidden. You can show everyone again below.', 3000);
-    if (lastData) renderEntries(lastData);
-    refreshPreview(true);
-  }
-
-  function unhideAll() {
-    Leaderboard.unblockAll();
-    if (lastData) renderEntries(lastData);
-    refreshPreview(true);
-  }
-
-  function guard(fn) {
-    if (busy) return;
-    busy = true;
-    Promise.resolve().then(fn).catch(function (error) {
-      setStatus(error && error.message ? error.message : 'Something went wrong.');
-    }).then(function () { busy = false; });
-  }
-
-  function createGroup() {
-    guard(function () {
-      return Leaderboard.createGroup(deps.playerName()).then(function (res) {
-        activeGroup = res.code;
-        renderGroupCode();
-        refresh();
-      });
+  /* After any finished (not assisted) run: post and show the player's standing. */
+  function afterRun(run) {
+    var line = el('over-rank');
+    var which = run.weeklyId ? 'weekly' : 'best';
+    var gc = global.GameCenter.getState();
+    line.classList.add('hidden');
+    if (!gc.supported || !(run.score >= 1)) return Promise.resolve();
+    line.classList.remove('hidden');
+    if (!gc.authenticated) { line.textContent = 'Sign in to Game Center to get ranked.'; return Promise.resolve(); }
+    line.textContent = 'Posting your score…';
+    return global.GameCenter.afterRun(which).then(function (result) {
+      if (result.status === 'ranked') line.textContent = (which === 'weekly' ? 'Weekly rank #' : 'All-time rank #') + result.rank + ' of ' + result.total;
+      else line.textContent = 'Saved. It posts to Game Center when you’re back online.';
+      previewAt = 0; // the home card shows the new standing when you get back
     });
   }
 
-  function joinWithCode() {
-    guard(function () {
-      var code = Leaderboard.normalizeCode(el('lb-code-input').value);
-      return Leaderboard.joinGroup(code, deps.playerName()).then(function () {
-        activeGroup = code;
-        el('lb-code-input').value = '';
-        renderGroupCode();
-        refresh();
-      });
-    });
-  }
-
-  function shareGroup() {
-    if (!activeGroup) return;
-    Share.shareText('Join my DON’T TAP THAT friend group! Code: ' + activeGroup).then(function (res) {
-      if (res && res.method === 'clipboard') UI.toast('Group invite copied.');
-    });
-  }
-
-  function deleteData() {
-    if (!global.confirm('Delete your name, scores and friend groups from the leaderboard? This cannot be undone.')) return;
-    guard(function () {
-      return Leaderboard.deleteMyData().then(function () {
-        activeGroup = null;
-        UI.toast('Your leaderboard data was deleted.', 3500);
-        UI.show('home');
-      });
-    });
-  }
-
-  /* Called after a weekly run ends. Shows rank when joined, or an invitation to join. */
-  function afterWeeklyRun(run) {
-    var rank = el('over-rank');
-    var joinBtn = el('btn-join-lb');
-    rank.classList.add('hidden');
-    joinBtn.classList.add('hidden');
-    if (!Leaderboard.enabled() || !(run.score >= 1)) return;
-    if (!Leaderboard.isOptedIn()) { joinBtn.classList.remove('hidden'); return; }
-    rank.textContent = 'Sending your score…';
-    rank.classList.remove('hidden');
-    Leaderboard.submit(run).then(function (res) {
-      rank.textContent = 'Weekly rank #' + res.rank + ' of ' + res.total;
-      refreshPreview(true); // the home card shows the new standing when you get back
-    }, function (error) {
-      if (Leaderboard.isTransient(error)) rank.textContent = 'Saved. It will post when you’re back online.';
-      else rank.classList.add('hidden');
-    });
+  function init(options) {
+    deps = Object.assign(deps, options || {});
+    allTime = boardView({ global: 'lb-tab-global', friends: 'lb-tab-friends', list: 'lb-list', status: 'lb-status' }, 'best');
+    weekly = boardView({ global: 'wk-tab-global', friends: 'wk-tab-friends', list: 'wk-list', status: 'wk-status' }, 'weekly');
+    el('btn-lb').addEventListener('click', function () { openAllTime('home'); });
+    el('btn-lb-back').addEventListener('click', function () { UI.show(returnTo); });
+    el('btn-lb-gc').addEventListener('click', function () { showInGameCenter('best'); });
+    el('btn-wk-play').addEventListener('click', function () { deps.startWeekly(); });
+    el('btn-wk-gc').addEventListener('click', function () { showInGameCenter('weekly'); });
+    el('btn-wk-back').addEventListener('click', function () { UI.show('home'); });
+    global.GameCenter.onChange(function () { refreshPreview(true); });
+    global.document.addEventListener('visibilitychange', function () { if (!global.document.hidden) refreshPreview(); });
+    refreshPreview();
   }
 
   global.LeaderboardUI = {
-    init: init, afterWeeklyRun: afterWeeklyRun, refreshEntry: refreshEntry,
-    visibleEntries: visibleEntries, previewModel: previewModel, refreshPreview: refreshPreview
+    init: init, afterRun: afterRun, openWeekly: openWeekly, openAllTime: openAllTime, refreshPreview: refreshPreview,
+    renderWeeklyInfo: renderWeeklyInfo, previewModel: previewModel, boardRows: boardRows, boardStatus: boardStatus, weekLine: weekLine
   };
 })(window);

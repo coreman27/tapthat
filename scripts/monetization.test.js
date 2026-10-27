@@ -237,7 +237,8 @@ test('UI preserves celebration, passes previous best, and prevents double-tap re
       weeklyBest() { return 0; }, recordWeekly() { return false; },
       theme: 'terminal', setTheme(id) { themeWrites.push(id); }
     },
-    LeaderboardUI: { init() {}, afterWeeklyRun() {}, refreshPreview() {} },
+    LeaderboardUI: { init() {}, afterRun() {}, refreshPreview() {}, openWeekly() {}, renderWeeklyInfo() {} },
+    GameCenter: { init() {}, onChange() {} },
     Themes: {
       LIST: [], enabled: () => false, available: () => false, previewAll: () => false,
       apply: (id) => id || 'default', applyTrusted: (id) => { trusted.push(id); return id; },

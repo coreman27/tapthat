@@ -1,5 +1,7 @@
 /* store-screenshots.js — renders App Store screenshots from the real game UI.
  * Output: store-screenshots/6.9-inch/*.png at 1320x2868 (iPhone 6.9"), file order = store order.
+ *   node scripts/store-screenshots.js --iap   ->  store-screenshots/iap-review/*.png, one per theme
+ *   (the review screenshot App Store Connect asks for on each theme in-app purchase).
  * The FIRST screenshot is also what Apple uses for the iMessage link preview, so it is a
  * bold game round that stays readable at thumbnail size.
  * Needs Google Chrome (macOS). Run: node scripts/store-screenshots.js
@@ -9,7 +11,8 @@ const path = require('path');
 const cp = require('child_process');
 
 const root = path.join(__dirname, '..');
-const outDir = path.join(root, 'store-screenshots', '6.9-inch');
+const IAP = process.argv.includes('--iap');
+const outDir = path.join(root, 'store-screenshots', IAP ? 'iap-review' : '6.9-inch');
 const tmp = fs.mkdtempSync(path.join(require('os').tmpdir(), 'dtt-shots-'));
 const CHROME = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
 const W = 440, H = 956, SCALE = 3; // 1320 x 2868
@@ -28,11 +31,24 @@ const scenes = [
       'document.getElementById("challenge-title").textContent="Sam survived 31 commands.";UI.show("challenge");' }
 ];
 
+// Pretend the App Store is reachable and the themes are for sale, as on a real device.
+const store = 'Monetization.getState=function(){return {supported:true,ready:true,busy:false,adsRemoved:false,' +
+  'ownedThemes:[],themePrices:{"com.coreyhall.donttapthat.theme.arcade":"$0.99","com.coreyhall.donttapthat.theme.terminal":"$0.99","com.coreyhall.donttapthat.theme.space":"$0.99"}}};' +
+  'Monetization.themePrice=function(){return "$0.99"};Monetization.ownsTheme=function(){return false};';
+const themeScene = (file, index) => ({ file: file, js: store + 'Store.setName("Corey");document.getElementById("btn-themes").click();' +
+  'document.querySelectorAll(".theme-card")[' + index + '].click();' });
+const iapScenes = [
+  themeScene('theme-neon-arcade.png', 1),
+  themeScene('theme-hacker-terminal.png', 2),
+  themeScene('theme-space-station.png', 3)
+];
+const run = IAP ? iapScenes : scenes;
+
 fs.mkdirSync(outDir, { recursive: true });
 const html = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
-for (const scene of scenes) {
+for (const scene of run) {
   const base = '<base href="file://' + root + '/">';
-  const safe = '<style>:root{--safe-t:59px;--safe-b:34px}</style>';
+  const safe = '<style>:root{--safe-t:59px;--safe-b:34px} #splash{display:none !important}</style>';
   const page = html.replace('<head>', '<head>' + base + safe)
     .replace('</body>', '<script>setTimeout(function(){' + scene.js + '},120)</script></body>');
   const inner = path.join(tmp, scene.file + '.html');

@@ -11,6 +11,7 @@
 		D17000000000000000000001 /* MonetizationBridgeViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = D17000000000000000000011 /* MonetizationBridgeViewController.swift */; };
 		D17000000000000000000002 /* MonetizationPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = D17000000000000000000012 /* MonetizationPlugin.swift */; };
 		D17000000000000000000003 /* MonetizationManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = D17000000000000000000013 /* MonetizationManager.swift */; };
+		D17000000000000000000005 /* GameCenterPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = D17000000000000000000016 /* GameCenterPlugin.swift */; };
 		2FAD9763203C412B000D30F8 /* config.xml in Resources */ = {isa = PBXBuildFile; fileRef = 2FAD9762203C412B000D30F8 /* config.xml */; };
 		50379B232058CBB4000EE86E /* capacitor.config.json in Resources */ = {isa = PBXBuildFile; fileRef = 50379B222058CBB4000EE86E /* capacitor.config.json */; };
 		504EC3081FED79650016851F /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 504EC3071FED79650016851F /* AppDelegate.swift */; };
@@ -27,6 +28,8 @@
 		D17000000000000000000011 /* MonetizationBridgeViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MonetizationBridgeViewController.swift; sourceTree = "<group>"; };
 		D17000000000000000000012 /* MonetizationPlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MonetizationPlugin.swift; sourceTree = "<group>"; };
 		D17000000000000000000013 /* MonetizationManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MonetizationManager.swift; sourceTree = "<group>"; };
+		D17000000000000000000016 /* GameCenterPlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GameCenterPlugin.swift; sourceTree = "<group>"; };
+		D17000000000000000000017 /* App.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = App.entitlements; sourceTree = "<group>"; };
 		2FAD9762203C412B000D30F8 /* config.xml */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = config.xml; sourceTree = "<group>"; };
 		50379B222058CBB4000EE86E /* capacitor.config.json */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.json; path = capacitor.config.json; sourceTree = "<group>"; };
 		504EC3041FED79650016851F /* App.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = App.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -88,6 +91,8 @@
 				D17000000000000000000011 /* MonetizationBridgeViewController.swift */,
 				D17000000000000000000012 /* MonetizationPlugin.swift */,
 				D17000000000000000000013 /* MonetizationManager.swift */,
+				D17000000000000000000016 /* GameCenterPlugin.swift */,
+				D17000000000000000000017 /* App.entitlements */,
 				D17000000000000000000014 /* PrivacyInfo.xcprivacy */,
 				504EC30B1FED79650016851F /* Main.storyboard */,
 				504EC30E1FED79650016851F /* Assets.xcassets */,
@@ -261,6 +266,7 @@
 				D17000000000000000000001 /* MonetizationBridgeViewController.swift in Sources */,
 				D17000000000000000000002 /* MonetizationPlugin.swift in Sources */,
 				D17000000000000000000003 /* MonetizationManager.swift in Sources */,
+				D17000000000000000000005 /* GameCenterPlugin.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -398,6 +404,7 @@
 			baseConfigurationReference = FC68EB0AF532CFC21C3344DD /* Pods-App.debug.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = App/App.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 13;
 				DEVELOPMENT_TEAM = J9H5633RYQ;
@@ -421,6 +428,7 @@
 			baseConfigurationReference = AF51FD2D460BCFE21FA515B2 /* Pods-App.release.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = App/App.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 13;
 				DEVELOPMENT_TEAM = J9H5633RYQ;

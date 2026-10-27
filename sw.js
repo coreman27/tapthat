@@ -4,7 +4,7 @@
  * challenge list) from sticking around after an update.
  * Bump CACHE_VERSION whenever you want to guarantee old caches are purged.
  */
-var CACHE_VERSION = 'v5';
+var CACHE_VERSION = 'v6';
 var CACHE = 'dtt-' + CACHE_VERSION;
 var ASSETS = [
   './',
@@ -13,10 +13,9 @@ var ASSETS = [
   './js/storage.js',
   './js/audio.js',
   './js/weekly.js',
+  './js/gamecenter.js',
   './js/themes.js',
   './js/share.js',
-  './js/leaderboard-config.js',
-  './js/leaderboard.js',
   './js/profile.js',
   './js/leaderboard-ui.js',
   './js/challenges.js',
