@@ -102,10 +102,12 @@ test('default theme tokens: quiet dark base, one solid accent', () => {
 });
 
 // ---- design system guards: keep the interface professional, not decorative ----
-test('controls use solid fills: no gradients except the fake notification icon', () => {
-  const gradients = css.match(/linear-gradient\([^)]*\)/g) || [];
-  assert.ok(gradients.length <= 1, 'found: ' + gradients.join(' | '));
-  assert.match(css, /\.fake-notif \.ic \{[^}]*linear-gradient/, 'the only gradient is the decorative iOS-style icon');
+test('controls use solid fills: no gradients except the fake notification icon and the splash speed streaks', () => {
+  // Gradients are allowed only on these two decorative, non-interactive elements.
+  const allowed = css.replace(/\.fake-notif \.ic \{[^}]*\}/, '').replace(/\.sp-stage \.s \{[^}]*\}/, '');
+  const gradients = allowed.match(/linear-gradient\([^)]*\)/g) || [];
+  assert.deepEqual(gradients, [], 'found: ' + gradients.join(' | '));
+  assert.match(css, /\.fake-notif \.ic \{[^}]*linear-gradient/);
   assert.doesNotMatch(css, /\.big-btn\.primary \{[^}]*gradient/);
   assert.doesNotMatch(css, /\.logo-accent \{[^}]*gradient/);
 });

@@ -533,6 +533,10 @@
       if (!document.hidden) { Monetization.touch(); refreshWeekly(); }
     });
 
+    // the launch splash: tap anywhere to skip it (it also ends by itself, in CSS)
+    var splash = el('splash');
+    if (splash) splash.addEventListener('pointerdown', function () { splash.classList.add('skip'); });
+
     // the player card: tap to change the name
     el('btn-name').addEventListener('click', openNameSheet);
     el('btn-name-save').addEventListener('click', saveName);

@@ -16,7 +16,8 @@ function draw(N) {
   const slashHalf = N * 0.024;
   const x1 = dcx - discR * 0.95, y1 = dcy + discR * 0.95, x2 = dcx + discR * 0.95, y2 = dcy - discR * 0.95;
 
-  const bgIn = [28, 28, 46], bgOut = [11, 11, 18];
+  // Flat, and exactly the app background (--bg #0a0b0f): the animated splash starts from this frame.
+  const bgIn = [10, 11, 15], bgOut = [10, 11, 15];
   const discEdge = [223, 230, 255], discCenter = [255, 255, 255];
   const red = [255, 59, 70];
 

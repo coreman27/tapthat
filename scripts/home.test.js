@@ -324,3 +324,44 @@ test('the home markup: player card, leaderboard card, name sheet, and no old nam
   assert.match(html, /<script src="js\/profile\.js"><\/script>/);
   assert.match(fs.readFileSync(path.join(__dirname, '..', 'sw.js'), 'utf8'), /\.\/js\/profile\.js/);
 });
+
+
+// ---------- launch splash ----------
+test('splash: an overlay on top of a ready home screen, so it can never trap anyone', () => {
+  const html = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
+  assert.match(html, /<section id="screen-home" class="screen active">/, 'home is already the active screen underneath');
+  assert.match(html, /<div id="splash" class="splash" aria-hidden="true">/);
+  assert.equal((html.match(/<span class="t t\d"><i class="s"><\/i><i class="b"><\/i><\/span>/g) || []).length, 5, 'five tiles');
+  for (const cls of ['sp-mark', 'sp-slash', 'sp-word', 'sp-tag', 'sp-ring r1', 'sp-ring r3']) assert.ok(html.includes('class="' + cls + '"'), cls);
+});
+
+test('splash: ends by itself in CSS within about two seconds, is skippable, and respects Reduce Motion', () => {
+  const css = fs.readFileSync(path.join(__dirname, '..', 'css', 'styles.css'), 'utf8');
+  const m = css.match(/\.splash \{[^}]*animation: sp-out ([\d.]+)s ease ([\d.]+)s forwards/);
+  assert.ok(m, 'the splash fades itself out without any script');
+  assert.ok(Number(m[1]) + Number(m[2]) <= 2.2, 'gone within 2.2 s');
+  assert.match(css, /@keyframes sp-out \{[^\n]*100% \{ opacity: 0; visibility: hidden; pointer-events: none; \}/, 'invisible and click-through at the end');
+  assert.match(css, /\.splash\.skip \{ animation: sp-out 0\.\d+s ease forwards !important; \}/);
+  const reduced = css.match(/@media \(prefers-reduced-motion: reduce\) \{\s*\.splash \{ animation: sp-out [\d.]+s ease ([\d.]+)s forwards; \}/);
+  assert.ok(reduced && Number(reduced[1]) < 1.5, 'Reduce Motion: no movement and a shorter, static splash');
+  for (const c of ['blue', 'red', 'green', 'yellow', 'purple']) assert.ok(css.includes('background: var(--' + c + ');'), 'tiles use the real gameplay color ' + c);
+});
+
+test('splash: the first frame matches the native launch image (same background, same mark)', () => {
+  const css = fs.readFileSync(path.join(__dirname, '..', 'css', 'styles.css'), 'utf8');
+  const gen = fs.readFileSync(path.join(__dirname, 'generate-splash.js'), 'utf8');
+  const config = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'capacitor.config.json'), 'utf8'));
+  assert.match(css, /--bg: #0a0b0f;/);
+  assert.match(gen, /const bgIn = \[10, 11, 15\], bgOut = \[10, 11, 15\];/, 'native background is the same flat #0a0b0f');
+  assert.equal(config.ios.backgroundColor, '#0a0b0f', 'the WebView background matches too');
+  assert.match(gen, /const discR = N \* 0\.13;/);
+  assert.match(css, /\.sp-mark \{\s*position: relative; width: 26vh; height: 26vh;/, 'disc diameter 26% of the screen height, like the aspect-filled native image');
+  assert.match(css, /\.splash \{\s*position: absolute; inset: 0; z-index: 60; overflow: hidden; background: var\(--bg\);/);
+});
+
+test('splash: a tap skips it', async () => {
+  const h = await home();
+  assert.equal(h.el('splash').classList.contains('skip'), false);
+  h.el('splash').fire('pointerdown');
+  assert.equal(h.el('splash').classList.contains('skip'), true);
+});
