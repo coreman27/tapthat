@@ -106,6 +106,4 @@ approved, leaderboards work in development builds once they exist in App Store C
 
 - Watch AdMob fill after the store link is approved (can take a day or two).
 - Confirm in the live app: your best on the all-time board; next Monday, the weekly board and commands reset.
-- **Shut down the old backend** (only once you're happy with Game Center; it holds no live data the app uses):
-  `cd server/terraform && AWS_PROFILE=corey terraform plan -destroy`, read it, then
-  `AWS_PROFILE=corey terraform destroy`. The code stays in `server/`.
+- ~~Shut down the old backend~~ **Done 2026-10-27** (`terraform destroy`: API, Lambda, DynamoDB table, IAM role, logs; verified gone). The code stays in `server/`; `npm run test:server` still runs its tests.
