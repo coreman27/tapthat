@@ -44,6 +44,13 @@
 
   function activePeriod(t) { return period && t >= period.start && t < period.end ? period : null; }
 
+  // When Apple's weekly board has not started yet (App Store Connect makes a new recurring board
+  // start in the future), the time it opens; otherwise null.
+  function upcoming(now) {
+    var t = now === undefined ? Date.now() : now;
+    return period && t < period.start ? period.start : null;
+  }
+
   // 'apple' while inside a period Game Center reported, otherwise 'local' (Monday 00:00 UTC).
   function source(now) { return activePeriod(now === undefined ? Date.now() : now) ? 'apple' : 'local'; }
 
@@ -121,6 +128,7 @@
     isoWeek: isoWeek,
     setPeriod: setPeriod,
     source: source,
+    upcoming: upcoming,
     msUntilReset: msUntilReset,
     isWeekId: isWeekId,
     rngFor: rngFor,

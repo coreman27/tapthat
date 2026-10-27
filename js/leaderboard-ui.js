@@ -32,7 +32,14 @@
     return rows;
   }
 
-  function boardStatus(data, scope) {
+  // "Mon, Nov 2" in the player's own language and time zone.
+  function openingDay(ms) {
+    try { return new Date(ms).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' }); }
+    catch (e) { return new Date(ms).toDateString(); }
+  }
+
+  function boardStatus(data, scope, opens) {
+    if (opens && !data.entries.length) return 'The weekly leaderboard opens ' + openingDay(opens) + '. Runs from then on are ranked.';
     if (!data.entries.length) return scope === 'friends' ? 'None of your Game Center friends have a score here yet.' : 'No scores yet. Be the first!';
     if (data.you) return 'You are #' + data.you.rank + ' of ' + data.total + '.';
     return 'Play a round to get on the board.';
@@ -86,7 +93,7 @@
       return global.GameCenter.board(which, scope, BOARD_ROWS).then(function (data) {
         if (mine !== seq) return;
         boardRows(data).forEach(function (r) { list.appendChild(row(r, 'li')); });
-        el(ids.status).textContent = boardStatus(data, scope);
+        el(ids.status).textContent = boardStatus(data, scope, which === 'weekly' ? global.Weekly.upcoming() : null);
       }, function (error) {
         if (mine !== seq) return;
         el(ids.status).textContent = failureText(error);
@@ -102,6 +109,7 @@
   /* ---- home card: the top of the all-time board ---- */
   var previewAt = 0;
   var previewBusy = false;
+  var previewAgain = false; // a forced refresh asked for while one was loading
 
   function renderPreview(model) {
     var list = el('lbp-list');
@@ -116,7 +124,8 @@
     el('btn-lb').classList.toggle('hidden', !gc.supported);
     if (!gc.supported) return;
     if (!gc.authenticated) { renderPreview(previewModel(null, gc)); return; }
-    if (previewBusy || (!force && previewAt && Date.now() - previewAt < 60000)) return;
+    if (previewBusy) { if (force) previewAgain = true; return; }
+    if (!force && previewAt && Date.now() - previewAt < 60000) return;
     previewBusy = true;
     if (!previewAt) el('lbp-footer').textContent = 'Loading the leaderboard…';
     global.GameCenter.board('best', 'global', PREVIEW_ROWS).then(function (data) {
@@ -124,7 +133,11 @@
       renderPreview(previewModel(data, gc));
     }, function () {
       renderPreview(previewModel(null, gc));
-    }).then(function () { previewBusy = false; });
+    }).then(function () {
+      previewBusy = false;
+      // e.g. the saved best finished posting while the card was loading: load once more
+      if (previewAgain) { previewAgain = false; refreshPreview(true); }
+    });
   }
 
   /* ---- the screens ---- */
@@ -167,6 +180,7 @@
     line.textContent = 'Posting your score…';
     return global.GameCenter.afterRun(which).then(function (result) {
       if (result.status === 'ranked') line.textContent = (which === 'weekly' ? 'Weekly rank #' : 'All-time rank #') + result.rank + ' of ' + result.total;
+      else if (result.status === 'not_open') line.textContent = 'The weekly leaderboard opens ' + openingDay(result.opens) + '.';
       else line.textContent = 'Saved. It posts to Game Center when you’re back online.';
       previewAt = 0; // the home card shows the new standing when you get back
     });
@@ -189,6 +203,6 @@
 
   global.LeaderboardUI = {
     init: init, afterRun: afterRun, openWeekly: openWeekly, openAllTime: openAllTime, refreshPreview: refreshPreview,
-    renderWeeklyInfo: renderWeeklyInfo, previewModel: previewModel, boardRows: boardRows, boardStatus: boardStatus, weekLine: weekLine
+    renderWeeklyInfo: renderWeeklyInfo, openingDay: openingDay, previewModel: previewModel, boardRows: boardRows, boardStatus: boardStatus, weekLine: weekLine
   };
 })(window);

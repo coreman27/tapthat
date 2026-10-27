@@ -10,6 +10,8 @@ const { makeDom } = require('./dom-stub');
 const IDS = { best: 'com.coreyhall.donttapthat.best', weekly: 'com.coreyhall.donttapthat.weekly' };
 const DAY = 86400000;
 
+const id0 = (ids) => ids[0];
+
 function fakeGameCenter(options = {}) {
   const me = options.me || 'Me';
   const boards = { [IDS.best]: new Map(), [IDS.weekly]: new Map() };
@@ -36,6 +38,8 @@ function fakeGameCenter(options = {}) {
       calls.submit.push({ score, ids: leaderboardIDs.slice() });
       if (!auth.authenticated) throw Object.assign(new Error('Not signed in'), { code: 'not_authenticated' });
       if (fail.submit > 0) { fail.submit--; throw Object.assign(new Error('The Internet connection appears to be offline.'), { code: 'submit_failed' }); }
+      for (let i = 0; i < (options.submitDelay || 0); i++) await new Promise((r) => setImmediate(r)); // Apple takes a moment
+      if (id0(leaderboardIDs) === IDS.weekly && period && (options.clockFn || Date.now)() < period.start) return { ok: true }; // not open yet: Apple keeps nothing
       for (const id of leaderboardIDs) boards[id].set(me, Math.max(boards[id].get(me) || 0, score));
       return { ok: true };
     },
@@ -47,7 +51,8 @@ function fakeGameCenter(options = {}) {
       const all = rows(id, scope);
       const result = { entries: all.slice(0, count), total: all.length };
       const you = all.find((r) => r.mine);
-      if (you) result.you = you;
+      // Like Apple: a signed-in player with no score still gets a placeholder entry (rank 0, score 0).
+      result.you = you || { rank: 0, score: 0, name: me, mine: true };
       if (id === IDS.weekly && period) result.period = { ...period };
       return result;
     },
@@ -65,9 +70,9 @@ function fakeGameCenter(options = {}) {
 /* One phone running the real storage, weekly, gamecenter and leaderboard-ui scripts.
    Pass `storage` (a Map) to simulate relaunching the app on the same phone. */
 function gamePhone(options = {}) {
-  const gc = options.gc || fakeGameCenter(options);
-  const storage = options.storage || new Map();
   const clock = { now: options.now || Date.parse('2026-10-28T12:00:00Z') };
+  const gc = options.gc || fakeGameCenter({ ...options, clockFn: () => clock.now });
+  const storage = options.storage || new Map();
   const dom = makeDom(['btn-lb', 'over-rank']);
   const shown = [];
   const toasts = [];

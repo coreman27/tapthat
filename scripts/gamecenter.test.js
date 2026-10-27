@@ -333,6 +333,54 @@ test('after a run: signed out, offline, and zero scores', async () => {
   assert.equal(zero.dom.hidden('over-rank'), true);
 });
 
+// ---------- found on a real phone (2026-10-27) ----------
+test('Game Center\'s "no score yet" placeholder (#0, score 0) is never shown as a row', async () => {
+  const p = gamePhone({ weekly: {}, period: mondayPeriod(NOW) });
+  await p.GameCenter.init();
+  p.ui.init({});
+  p.ui.openWeekly();
+  await tick();
+  assert.equal(p.el('wk-list').children.length, 0);
+  assert.equal(p.el('wk-status').textContent, 'No scores yet. Be the first!');
+  const raw = await p.gc.plugin.loadBoard({ id: IDS.weekly, scope: 'global', count: 5 });
+  assert.equal(raw.you.rank, 0, 'the fake does what Apple does');
+  assert.equal(p.GameCenter.normalize(raw).you, null);
+});
+
+test('the home card catches up when the saved best finishes posting while it was loading', async () => {
+  const p = gamePhone({ storage: saved({ best: 46 }), period: mondayPeriod(NOW), submitDelay: 6 });
+  p.ui.init({}); // listening before sign-in, as in the app
+  await p.GameCenter.init();
+  await tick(30);
+  assert.equal(p.gc.scoreOf('best'), 46);
+  assert.deepEqual(rowsOf(p.el('lbp-list')), [['#1', 'Me', '46']]);
+  assert.equal(p.el('lbp-footer').textContent, 'You are #1 of 1');
+});
+
+test('a weekly board that has not opened yet says when it opens, and nothing is posted to it early', async () => {
+  const opens = Date.parse('2026-11-02T00:00:00Z');
+  const p = gamePhone({ storage: saved({ weekly: { id: '2026-W44', best: 26, plays: 1 } }), period: { start: opens, end: opens + 7 * DAY } });
+  await p.GameCenter.init();
+  p.ui.init({});
+  p.ui.openWeekly();
+  await tick();
+  assert.equal(p.Weekly.upcoming(), opens);
+  assert.equal(p.Weekly.source(), 'local', 'this week still runs on the Monday 00:00 UTC schedule');
+  assert.equal(p.el('wk-list').children.length, 0);
+  assert.equal(p.el('wk-status').textContent, 'The weekly leaderboard opens ' + p.ui.openingDay(opens) + '. Runs from then on are ranked.');
+  assert.equal(p.gc.calls.submit.filter((c) => c.ids[0] === IDS.weekly).length, 0);
+  p.Store.recordWeekly('2026-W44', 30);
+  await p.ui.afterRun({ weeklyId: '2026-W44', score: 30 });
+  assert.equal(p.el('over-rank').textContent, 'The weekly leaderboard opens ' + p.ui.openingDay(opens) + '.');
+  // once it opens (Monday), this week's runs post as usual
+  p.clock.now = opens + DAY;
+  assert.equal(p.Weekly.source(), 'apple');
+  assert.equal(p.Weekly.weekId(), '2026-W45');
+  p.Store.recordWeekly('2026-W45', 12);
+  await p.GameCenter.sync();
+  assert.equal(p.gc.scoreOf('weekly'), 12);
+});
+
 // ---------- the app is wired for Game Center ----------
 test('the leaderboard ids match App Store Connect', () => {
   assert.match(read('js/gamecenter.js'), /best: 'com\.coreyhall\.donttapthat\.best',\s*weekly: 'com\.coreyhall\.donttapthat\.weekly'/);

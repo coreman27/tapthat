@@ -67,7 +67,8 @@
   function normalize(raw) {
     raw = raw || {};
     function row(e) {
-      if (!e || typeof e.rank !== 'number' || typeof e.score !== 'number') return null;
+      // Game Center reports "you have no score yet" as an entry with rank 0: that is no entry.
+      if (!e || typeof e.rank !== 'number' || typeof e.score !== 'number' || e.rank < 1) return null;
       return { rank: e.rank | 0, score: e.score | 0, name: String(e.name || 'Player').slice(0, MAX_NAME), mine: e.mine === true };
     }
     var entries = (Array.isArray(raw.entries) ? raw.entries : []).map(row).filter(Boolean);
@@ -120,7 +121,11 @@
       if (weekly > already && global.Weekly.source() === 'apple') {
         jobs.push(submit('weekly', weekly).then(function () { done.weekly = { id: week, score: weekly }; posted = true; }, function () {}));
       }
-      return Promise.all(jobs).then(function () { saveSynced(done); return posted; });
+      return Promise.all(jobs).then(function () {
+        saveSynced(done);
+        if (posted) publish(); // screens showing a board reload it
+        return posted;
+      });
     }).then(function (result) { syncing = null; return result; }, function () { syncing = null; return false; });
     return syncing;
   }
@@ -131,7 +136,9 @@
     if (!plugin) return Promise.resolve({ status: 'unsupported' });
     if (!state.authenticated) return Promise.resolve({ status: 'signed_out' });
     return sync().then(function () { return board(which, 'global', 1); }).then(function (data) {
-      return data.you ? { status: 'ranked', rank: data.you.rank, total: data.total } : { status: 'offline' };
+      if (data.you) return { status: 'ranked', rank: data.you.rank, total: data.total };
+      if (which === 'weekly' && global.Weekly.upcoming()) return { status: 'not_open', opens: global.Weekly.upcoming() };
+      return { status: 'offline' };
     }, function () { return { status: 'offline' }; });
   }
 
