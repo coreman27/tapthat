@@ -67,6 +67,8 @@ function game() {
   screen.appendChild(field);
   const notif = makeEl('div');
   screen.appendChild(notif);
+  const hud = makeEl('div'); // the command, score and timer bar sit outside the play area
+  screen.appendChild(hud);
   const results = [];
   let script = [];
   ctx.Adaptive.pickNext = () => { const id = script.shift() || 'tapme'; return ctx.Challenges.DEFS.find((d) => d.id === id); };
@@ -90,7 +92,7 @@ function game() {
   const button = () => field.children.find((c) => /gbtn/.test(c.className));
   const buttons = () => field.children.filter((c) => /gbtn/.test(c.className));
   return {
-    ctx, field, notif, results, instruction, advance, pumpFrames, button, buttons,
+    ctx, field, notif, hud, results, instruction, advance, pumpFrames, button, buttons,
     play(ids) { script = ids.slice(); ctx.Engine.start(); advance(550); },
     score: () => ctx.Engine.getScore(),
     over: () => results.at(-1),
@@ -128,6 +130,14 @@ test('missing the button fails', () => {
   g.advance(300);
   assert.equal(g.over().reason, 'Missed the button.');
   assert.equal(g.over().score, 0);
+});
+
+test('missing counts anywhere on the game screen, not just the play area (a TAP ME found on a phone)', () => {
+  const g = game();
+  g.play(['tapme']);
+  g.tap(g.hud);
+  g.advance(300);
+  assert.equal(g.over().reason, 'Missed the button.');
 });
 
 test('a miss is fine when the round is about not tapping, or chasing a runaway button', () => {

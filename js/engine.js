@@ -39,13 +39,9 @@
   }
 
   function isButton(target) {
-    for (var node = target; node && node !== field; node = node.parentNode) {
+    for (var node = target; node; node = node.parentNode) {
       if (node.classList && node.classList.contains('gbtn')) return true;
     }
-    return false;
-  }
-  function inField(target) {
-    for (var node = target; node; node = node.parentNode) if (node === field) return true;
     return false;
   }
 
@@ -60,7 +56,8 @@
     if (!running) return;
     if (settling) { finishSettle('fail', 'Double tap. One tap only.'); return; }
     if (resolved) return;
-    if (missFails() && inField(e.target) && !isButton(e.target)) {
+    // Anywhere on the game screen that isn't a button counts: the play area, the command, the score, the timer.
+    if (missFails() && !isButton(e.target)) {
       resolve('fail', 'Missed the button.', currentDef.category);
     }
   }

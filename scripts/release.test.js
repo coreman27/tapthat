@@ -36,3 +36,14 @@ test('the upload script bumps the build every time, from a clean pushed main, an
   assert.match(read('ios/App/ExportOptions.plist'), /<key>manageAppVersionAndBuildNumber<\/key>\s*<false\/>/,
     'the project, not Xcode, decides the build number');
 });
+
+test('every Xcode build copies the latest web game into the app (no stale code on the phone)', () => {
+  const pbx = read('ios/App/App.xcodeproj/project.pbxproj');
+  const phases = pbx.slice(pbx.indexOf('buildPhases = ('), pbx.indexOf(');', pbx.indexOf('buildPhases = (')));
+  assert.ok(phases.indexOf('Sync Web App') !== -1 && phases.indexOf('Sync Web App') < phases.indexOf('Resources'), 'runs before Resources');
+  assert.match(pbx, /shellScript = "\/bin\/sh \\"\$\{SRCROOT\}\/sync-web\.sh\\"\\n";/);
+  const script = read('ios/App/sync-web.sh');
+  assert.match(script, /node scripts\/sync-www\.js/);
+  assert.match(script, /npx --no-install cap copy ios/);
+  execFileSync('sh', ['-n', path.join(root, 'ios/App/sync-web.sh')]);
+});
