@@ -1,7 +1,7 @@
-# App Store Listing Copy — AI Positioning
+# App Store Listing Copy
 
-Ready-to-paste copy for App Store Connect. Positioning: **an AI-powered reflex game
-that learns about *you* and applies the exact failure pattern that beats you.** All of
+Ready-to-paste copy for App Store Connect. Positioning (2026-10-27): **a reflex game that learns how
+to beat you. How long can you last?** Rounds, not commands, and no "AI is coming for you" tone. All of
 it is backed by the real on-device adaptive engine (`js/adaptive.js`), so it stays
 truthful for App Review — no server-side "AI" claims that don't exist.
 
@@ -12,49 +12,50 @@ DON'T TAP THAT
 
 ## Subtitle (max 30 chars)
 ```
-The AI that learns to beat you
+How long can you last?
 ```
 
 ## Promotional text (max 170 chars, editable anytime without a new build)
 ```
-An AI that studies how you play, finds your weakness, and serves you the exact command you keep failing. Two players are never playing the same game.
+A reflex game that learns how to beat you. Do what it says, don't when it says DON'T, and see how many rounds you can last. New Weekly Challenge every Monday.
 ```
 
 ## Keywords (max 100 chars, comma-separated, no spaces)
 ```
-ai,adaptive,reflex,tap,brain,reaction,fast,psychology,learning,challenge,arcade,focus,test,speed
+reflex,reaction,tap,adaptive,ai,brain,speed,arcade,challenge,weekly,focus,fast,test,game,leaderboard
 ```
 
 ## Description
 ```
-DON'T TAP THAT is a one-thumb reflex game with an AI that learns about YOU and uses it against you.
+DON'T TAP THAT is a one-thumb reflex game that learns how to beat you.
 
-Read the command. TAP ME. DON'T TAP BLUE. HOLD. SWIPE. TAP AFTER IT TURNS GREEN. You get about a second to obey, or, when the command is a DON'T, to resist. One mistake ends the run.
+TAP ME. DON'T TAP BLUE. HOLD. SWIPE. TAP WHEN IT TURNS GREEN. You get about a second each round: do what it says, or, when it says DON'T, don't. One mistake ends the run.
 
-But here's the twist: an on-device AI is watching how you play. It tracks which commands trip you up, learns your personal failure pattern, and steers the next round toward the exact thing you keep getting wrong. Choke on colors? You'll drown in colors. Can't resist tapping? It knows, and it will bait you. Two players at the same score are never playing the same game, because the game has quietly rebuilt itself around each of them.
-
-The longer you play, the smarter it gets and the more personal it feels. It's not random difficulty, it's a game that studies you.
+The twist: the game is paying attention. It notices which rounds trip you up and gives you more of them. Mix up colors? Expect colors. Can't resist a tap? It will tempt you. No two players get the same game, and it gets harder the longer you last.
 
 WHY YOU'LL KEEP TAPPING
-- AI that adapts to your reflexes in real time and targets your weakness
-- 17+ challenge types: tap, don't-tap, color, Stroop, swipe, hold, wait, catch, bait-and-switch, and more
-- A Weekly Challenge: everyone gets the same commands for the week, so you can compare with friends
-- Quick retries, with occasional ad breaks between runs
-- Difficulty that ramps as fast as you do
-- Optional one-time Remove Ads purchase, with Restore Purchases for your Apple Account
+- A game that adapts to you as you play
+- 17+ kinds of rounds: tap, don't tap, colors, swipe, hold, wait, catch, bait-and-switch and more
+- Weekly Challenge: the same rounds for everyone, a fresh set every Monday, with its own Game Center leaderboard
+- An all-time Game Center leaderboard
+- Challenge a friend with a link
+- Quick retries, with an occasional ad between runs, never during one
+- Remove Ads: a one-time purchase that restores on any device
 
-ON-DEVICE GAMEPLAY
-Adaptive difficulty runs entirely on your device. No game account or sign-up is required. The free iOS version includes advertising. Remove Ads is a one-time in-app purchase, not a subscription. Core gameplay works offline. See our privacy policy for advertising and purchase data practices.
+ON YOUR DEVICE
+The adaptive difficulty runs entirely on your iPhone. No account or sign-up needed. The free version includes ads. Remove Ads is a one-time in-app purchase, not a subscription. Plays offline. See our privacy policy for how ads and purchases handle data.
 
-How long can you last against a game that learns exactly how to make you fail?
+How long can you last?
 ```
 
 ## What's New (v1.1.0)
 ```
-- New Weekly Challenge: the same commands for every player each week. Share your score and see who beats it.
-- A fresh, cleaner design.
-- Occasional ads between runs. A one-time Remove Ads purchase removes them for good, and you can restore it on any device.
-- Bug fixes and smoother taps.
+- Weekly Challenge: the same rounds for every player each week, with its own Game Center leaderboard. Share your score and see who beats it.
+- Game Center leaderboards for your all-time best.
+- A fresh, cleaner design, with your name on a player card.
+- A shorter How to play.
+- Occasional ads between runs. A one-time Remove Ads purchase removes them for good and restores on any device.
+- Bug fixes and snappier taps.
 ```
 
 ## What's New (v1.0.0)
@@ -81,5 +82,4 @@ or consent does not permit ads, the game skips that break. An active verified
 Remove Ads purchase suppresses all interstitials.
 
 ## Suggested metadata alignment (optional, keeps the whole app on-message)
-- `manifest.webmanifest` → `description`: "An AI reflex game that learns about you and serves the exact command you keep failing."
-- `index.html` og:description / twitter:description: same AI-forward line.
+- `manifest.webmanifest` → `description`: "A reflex game that learns how to beat you. How long can you last?" (done 2026-10-27)
