@@ -2,6 +2,8 @@
  * Output: store-screenshots/6.9-inch/*.png at 1320x2868 (iPhone 6.9"), file order = store order.
  *   node scripts/store-screenshots.js --iap   ->  store-screenshots/iap-review/*.png, one per theme
  *   (the review screenshot App Store Connect asks for on each theme in-app purchase).
+ *   node scripts/store-screenshots.js --marketing  ->  store-screenshots/marketing/raw/*.png, the screens
+ *   behind the header and search-results images (then scripts/appstore-marketing.sh).
  * The FIRST screenshot is also what Apple uses for the iMessage link preview, so it is a
  * bold game round that stays readable at thumbnail size.
  * Needs Google Chrome (macOS). Run: node scripts/store-screenshots.js
@@ -12,7 +14,8 @@ const cp = require('child_process');
 
 const root = path.join(__dirname, '..');
 const IAP = process.argv.includes('--iap');
-const outDir = path.join(root, 'store-screenshots', IAP ? 'iap-review' : '6.9-inch');
+const MARKETING = process.argv.includes('--marketing');
+const outDir = path.join(root, 'store-screenshots', IAP ? 'iap-review' : MARKETING ? 'marketing/raw' : '6.9-inch');
 const tmp = fs.mkdtempSync(path.join(require('os').tmpdir(), 'dtt-shots-'));
 const CHROME = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
 const W = 440, H = 956, SCALE = 3; // 1320 x 2868
@@ -42,7 +45,16 @@ const iapScenes = [
   themeScene('theme-hacker-terminal.png', 2),
   themeScene('theme-space-station.png', 3)
 ];
-const run = IAP ? iapScenes : scenes;
+// --marketing: the bare screens behind the product-page header and search-results image
+// (scripts/appstore-marketing.swift composes them). A colour round, a DON'T round, and a new best.
+const round = (id, score) => pick(id) + 'Store.setName("Corey");document.getElementById("btn-play").click();' +
+  'setTimeout(function(){document.getElementById("score").textContent=' + score + ';document.getElementById("hud-best").textContent=52;},400);';
+const marketingScenes = [
+  { file: 'tapcolor.png', budget: 1250, js: round('tapcolor', 14) },
+  { file: 'donttap.png', budget: 1250, js: round('donttap', 31) },
+  scenes[2]
+].map((s) => Object.assign({}, s, { file: s.file === '03-game-over.png' ? 'game-over.png' : s.file }));
+const run = IAP ? iapScenes : MARKETING ? marketingScenes : scenes;
 
 fs.mkdirSync(outDir, { recursive: true });
 const html = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
