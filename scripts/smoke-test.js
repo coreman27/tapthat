@@ -217,12 +217,9 @@ console.log('\nTouch cancellation and repeated rounds');
         button.dispatch('pointerdown', {});
         button.dispatch('pointerup', {});
       }
-      assert(W.Engine.getScore() === i, 'round ' + i + ': a correct tap settles before it counts');
-      advance(W.Engine.EXTRA_TAP_MS);
       assert(W.Engine.getScore() === i + 1, 'round ' + i + ': taps advance score');
-      button.dispatch('pointerdown', {});
-      assert(W.Engine.getScore() === i + 1, 'round ' + i + ': old button handler removed');
-      if (i < 19) advance(170);
+      assert((button._listeners.pointerdown || []).length === 0, 'round ' + i + ': old button handler removed');
+      if (i < 19) advance(W.Engine.EXTRA_TAP_MS); // the next command comes after the double-tap beat
     }
     const rounds = W.Engine.getRounds();
     assert(rounds.length === 20 && rounds.every(function (t) { return Number.isInteger(t) && t >= 1; }),
@@ -298,7 +295,7 @@ console.log('\n3c) Rewarded Continue: the real engine resumes once, only casuall
     // --- casual run: two clears, then a failure at score 2 ---
     script = ['tapme', 'tapme', 'donttap'];
     W.Engine.start(); advance(550);
-    tapCorrect(); advance(170); tapCorrect(); advance(170);
+    tapCorrect(); tapCorrect();
     assert(W.Engine.canResume() === false, 'cannot continue while a run is in progress');
     failNow(); advance(260);
     assert(results.length === 1 && results[0].score === 2 && results[0].assisted === false, 'first ending: score 2, not assisted');
@@ -319,7 +316,7 @@ console.log('\n3c) Rewarded Continue: the real engine resumes once, only casuall
     // --- weekly runs are never continued ---
     script = ['tapme', 'donttap'];
     W.Engine.start({ weeklyId: '2026-W40' }); advance(550);
-    tapCorrect(); advance(170); failNow(); advance(260);
+    tapCorrect(); failNow(); advance(260);
     assert(results[2].weeklyId === '2026-W40' && W.Engine.canResume() === false, 'weekly failures cannot be continued');
 
     // --- failing before scoring, or stopping, offers nothing ---
@@ -327,7 +324,7 @@ console.log('\n3c) Rewarded Continue: the real engine resumes once, only casuall
     W.Engine.start(); advance(550); failNow(); advance(260);
     assert(results[3].score === 0 && W.Engine.canResume() === false, 'a failure at score 0 cannot be continued');
     script = ['tapme', 'donttap'];
-    W.Engine.start(); advance(550); tapCorrect(); advance(170); failNow(); advance(260);
+    W.Engine.start(); advance(550); tapCorrect(); failNow(); advance(260);
     assert(W.Engine.canResume() === true, 'a casual failure can be continued...');
     W.Engine.stop();
     assert(W.Engine.canResume() === false && W.Engine.resume() === false, '...until the run is abandoned');

@@ -29,19 +29,39 @@
     osc.stop(t0 + dur + 0.02);
   }
 
-  function haptic(ms) {
+  // iPhone has no navigator.vibrate: use Capacitor's native Haptics plugin (the Taptic Engine) there.
+  // kind: 'light' | 'medium' | 'error' | 'success'. The pattern is the fallback for other browsers.
+  var nativeHaptics = null;
+  function hapticsPlugin() {
+    if (nativeHaptics !== null) return nativeHaptics;
+    var C = global.Capacitor;
+    nativeHaptics = (C && typeof C.isNativePlatform === 'function' && C.isNativePlatform() && C.Plugins && C.Plugins.Haptics) || false;
+    return nativeHaptics;
+  }
+
+  function haptic(kind, pattern) {
     if (Store.muted) return;
-    if (navigator.vibrate) { try { navigator.vibrate(ms); } catch (e) {} }
+    var h = hapticsPlugin();
+    try {
+      if (h) {
+        var call = kind === 'error' ? h.notification({ type: 'ERROR' })
+          : kind === 'success' ? h.notification({ type: 'SUCCESS' })
+          : h.impact({ style: kind === 'medium' ? 'MEDIUM' : 'LIGHT' });
+        if (call && typeof call.catch === 'function') call.catch(function () {});
+      } else if (global.navigator && global.navigator.vibrate) {
+        global.navigator.vibrate(pattern);
+      }
+    } catch (e) { /* haptics are a nicety */ }
   }
 
   var Audio = {
     unlock: function () { var c = ac(); if (c && c.state === 'suspended') c.resume(); },
-    good: function () { tone(660, 0.09, 'triangle', 0.16); haptic(8); },
-    great: function () { tone(660, 0.07, 'triangle', 0.16); tone(990, 0.1, 'triangle', 0.16, 0.06); haptic(12); },
-    bad: function () { tone(150, 0.35, 'sawtooth', 0.22); haptic([30, 40, 60]); },
+    good: function () { tone(660, 0.09, 'triangle', 0.16); haptic('light', 8); },
+    great: function () { tone(660, 0.07, 'triangle', 0.16); tone(990, 0.1, 'triangle', 0.16, 0.06); haptic('medium', 12); },
+    bad: function () { tone(150, 0.35, 'sawtooth', 0.22); haptic('error', [30, 40, 60]); },
     tick: function () { tone(1200, 0.03, 'square', 0.05); },
     ready: function () { tone(520, 0.05, 'sine', 0.12); },
-    best: function () { tone(660, 0.1, 'triangle', 0.18); tone(880, 0.1, 'triangle', 0.18, 0.09); tone(1320, 0.16, 'triangle', 0.18, 0.18); haptic([10, 30, 10, 30, 20]); }
+    best: function () { tone(660, 0.1, 'triangle', 0.18); tone(880, 0.1, 'triangle', 0.18, 0.09); tone(1320, 0.16, 'triangle', 0.18, 0.18); haptic('success', [10, 30, 10, 30, 20]); }
   };
 
   global.Sound = Audio;

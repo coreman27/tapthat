@@ -104,14 +104,29 @@ function game() {
 
 const { EXTRA_TAP_MS, HOLD_MS } = (() => { const g = game(); return { EXTRA_TAP_MS: g.ctx.Engine.EXTRA_TAP_MS, HOLD_MS: g.ctx.Engine.HOLD_MS }; })();
 
-test('a clean single tap clears the round once the finger lifts and a moment passes', () => {
+test('a correct tap scores at once; the next command comes when the finger lifts plus a short beat', () => {
+  const g = game();
+  g.play(['tapme', 'tapnumber']);
+  const first = g.button();
+  g.down(first);
+  assert.equal(g.score(), 1, 'instant point, sound and buzz on the touch');
+  g.advance(60);
+  g.up(first);
+  g.advance(EXTRA_TAP_MS - 1);
+  assert.equal(g.buttons().length, 0, 'still the double-tap beat');
+  g.advance(1);
+  assert.ok(g.buttons().length > 1, 'the next command is up straight after the beat');
+  assert.match(g.instruction.textContent, /^TAP \d$/);
+  assert.equal(g.results.length, 0);
+});
+
+test('the pause between commands is no longer than before the tap rules', () => {
   const g = game();
   g.play(['tapme', 'tapme']);
-  g.tap(g.button());
-  assert.equal(g.score(), 0, 'not yet: it might still be a double tap');
+  g.tap(g.button(), 80);           // a normal 80 ms tap
   g.advance(EXTRA_TAP_MS);
-  assert.equal(g.score(), 1);
-  assert.equal(g.results.length, 0);
+  assert.ok(g.button(), 'next command up 80 + 150 = 230 ms after the touch');
+  assert.ok(80 + EXTRA_TAP_MS <= 250, 'was 170 ms after the touch before; now about the same, with no wait for the point');
 });
 
 test('the reaction time counts from the touch, not the release', () => {
@@ -160,17 +175,17 @@ test('double tapping a single tap fails', () => {
   g.down(b); // the second tap of a double tap, wherever it lands
   g.advance(300);
   assert.equal(g.over().reason, 'Double tap. One tap only.');
-  assert.equal(g.over().score, 0, 'the round is not counted');
+  assert.equal(g.over().score, 1, 'the round you cleared counts; the extra tap ends the run');
 });
 
-test('a second tap after the window is just the next tap, not a double tap', () => {
+test('a tap after the beat belongs to the next command, not a double tap', () => {
   const g = game();
   g.play(['tapme', 'tapme']);
   g.tap(g.button());
-  g.advance(EXTRA_TAP_MS + 1);
-  assert.equal(g.score(), 1);
-  g.field.dispatch('pointerdown'); // between rounds: harmless
-  g.advance(200);
+  g.advance(EXTRA_TAP_MS);
+  g.tap(g.button());
+  g.advance(EXTRA_TAP_MS);
+  assert.equal(g.score(), 2);
   assert.equal(g.results.length, 0);
 });
 
@@ -178,10 +193,11 @@ test('holding a tap fails', () => {
   const g = game();
   g.play(['tapme']);
   g.down(g.button());
-  g.advance(HOLD_MS);
-  assert.equal(g.score(), 0);
+  g.advance(HOLD_MS - 1);
+  assert.equal(g.results.length, 0);
   g.advance(300);
   assert.equal(g.over().reason, 'That was a hold. Just tap.');
+  assert.equal(g.over().score, 1, 'the touch scored; holding on ended the run');
 });
 
 test('a slow but normal tap (under the hold limit) still counts', () => {
@@ -279,4 +295,37 @@ test('How to play explains the new rules', () => {
   const html = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
   assert.match(html, /<li>One clean tap\. Missing the button, double-tapping, or holding a tap ends the run\.<\/li>/);
   assert.match(html, /<li>When it says <b>HOLD<\/b>, hold until the bar fills\.<\/li>/);
+});
+
+// ---------- haptics: iPhone has no navigator.vibrate, so the native plugin is used ----------
+function sound({ native = true, muted = false } = {}) {
+  const calls = [];
+  const ctx = {
+    console,
+    Store: { muted },
+    navigator: { vibrate: (p) => calls.push(['vibrate', p]) },
+    Capacitor: native ? { isNativePlatform: () => true, Plugins: { Haptics: {
+      impact: async (o) => { calls.push(['impact', o.style]); },
+      notification: async (o) => { calls.push(['notification', o.type]); }
+    } } } : undefined
+  };
+  ctx.window = ctx;
+  vm.createContext(ctx);
+  vm.runInContext(fs.readFileSync(path.join(__dirname, '..', 'js', 'audio.js'), 'utf8'), ctx);
+  return { Sound: ctx.Sound, calls };
+}
+
+test('haptics on iPhone: a light tap per point, medium every 10, an error buzz on failing, success on a new best', () => {
+  const { Sound, calls } = sound();
+  Sound.good(); Sound.great(); Sound.bad(); Sound.best();
+  assert.deepEqual(calls, [['impact', 'LIGHT'], ['impact', 'MEDIUM'], ['notification', 'ERROR'], ['notification', 'SUCCESS']]);
+});
+
+test('haptics: muted means none; outside the app the vibration pattern is the fallback', () => {
+  const muted = sound({ muted: true });
+  muted.Sound.good(); muted.Sound.bad();
+  assert.deepEqual(muted.calls, []);
+  const web = sound({ native: false });
+  web.Sound.good(); web.Sound.bad();
+  assert.deepEqual(JSON.parse(JSON.stringify(web.calls)), [['vibrate', 8], ['vibrate', [30, 40, 60]]]);
 });

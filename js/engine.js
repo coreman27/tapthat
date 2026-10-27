@@ -13,17 +13,19 @@
   var resolved = false;
   var onUpdate = function () {}, onGameOver = function () {};
 
-  /* Tap discipline. A tap round is only cleared by one clean tap on the right button:
-     - a tap on empty space (missing the button) fails, in rounds that ask for a tap;
+  /* Tap discipline. A tap round is cleared by one clean tap on the right button:
+     - a tap that isn't on a button (missing it) fails, in rounds that ask for a tap;
      - a press longer than HOLD_MS is a hold, not a tap, and fails;
      - another tap within EXTRA_TAP_MS of letting go is a double tap, and fails.
-     So a correct tap "settles" (finger up, then a short quiet window) before it counts.
-     The reaction time still counts from the moment the button was touched. */
+     The round counts the moment the right button is touched (instant point, sound and buzz).
+     Then a short "guard" runs until the finger lifts plus EXTRA_TAP_MS: that gap is also the pause
+     before the next command, so the rules cost no extra time. A hold or second tap during the
+     guard ends the run (the round already cleared still counts). */
   var HOLD_MS = 450;
-  var EXTRA_TAP_MS = 180;
+  var EXTRA_TAP_MS = 150;
   var currentDef = null, currentEnv = null;
   var pointerDown = false, downAt = 0;
-  var settling = false, settleCategory = null, settleElapsed = 0, settleTimer = 0;
+  var guarding = false, guardCategory = null, guardTimer = 0;
 
   function init(refs) {
     field = refs.field;
@@ -54,7 +56,7 @@
     pointerDown = true;
     downAt = performance.now();
     if (!running) return;
-    if (settling) { finishSettle('fail', 'Double tap. One tap only.'); return; }
+    if (guarding) { failDuringGuard('Double tap. One tap only.'); return; }
     if (resolved) return;
     // Anywhere on the game screen that isn't a button counts: the play area, the command, the score, the timer.
     if (missFails() && !isButton(e.target)) {
@@ -64,39 +66,40 @@
 
   function onScreenUp() {
     pointerDown = false;
-    if (!settling) return;
-    clearTimeout(settleTimer);
-    settleTimer = setTimeout(function () { finishSettle('success'); }, EXTRA_TAP_MS);
+    if (!guarding) return;
+    clearTimeout(guardTimer);
+    guardTimer = setTimeout(endGuard, EXTRA_TAP_MS);
   }
 
-  // A correct tap landed: stop the clock, clear the board, and wait for a clean release.
-  function beginSettle(category) {
-    if (resolved) return;
-    resolved = true;
-    settling = true;
-    settleCategory = category;
-    settleElapsed = performance.now() - timerStart;
-    stopTimer();
-    clearField();
+  // After a cleared tap round: wait for a clean release, then the next command.
+  function startGuard(category) {
+    guarding = true;
+    guardCategory = category;
     if (pointerDown) {
       var left = Math.max(0, HOLD_MS - (performance.now() - downAt));
-      settleTimer = setTimeout(function () { finishSettle('fail', 'That was a hold. Just tap.'); }, left);
+      guardTimer = setTimeout(function () { failDuringGuard('That was a hold. Just tap.'); }, left);
     } else {
-      settleTimer = setTimeout(function () { finishSettle('success'); }, EXTRA_TAP_MS);
+      guardTimer = setTimeout(endGuard, EXTRA_TAP_MS);
     }
   }
 
-  function finishSettle(result, reason) {
-    if (!settling) return;
-    clearTimeout(settleTimer);
-    settling = false;
-    resolved = false;
-    resolve(result, reason, settleCategory, settleElapsed);
+  function endGuard() {
+    if (!guarding) return;
+    guarding = false;
+    if (running) nextRound();
   }
 
-  function cancelSettle() {
-    clearTimeout(settleTimer);
-    settling = false;
+  function failDuringGuard(reason) {
+    if (!guarding) return;
+    clearTimeout(guardTimer);
+    guarding = false;
+    resolved = false; // the cleared round stays counted; this ends the run
+    resolve('fail', reason, guardCategory);
+  }
+
+  function cancelGuard() {
+    clearTimeout(guardTimer);
+    guarding = false;
   }
 
   function clearField() {
@@ -146,7 +149,7 @@
 
   function stopTimer() { cancelAnimationFrame(raf); }
 
-  function resolve(result, reason, category, elapsed) {
+  function resolve(result, reason, category, viaTap) {
     if (resolved) return;
     resolved = true;
     stopTimer();
@@ -166,7 +169,7 @@
         onGameOver({ score: score, reason: reason || 'Game over.', category: category, weeklyId: finished, rounds: rounds.slice(), assisted: assisted });
       }, 260);
     } else {
-      rounds.push(Math.max(1, Math.round(elapsed === undefined ? performance.now() - timerStart : elapsed)));
+      rounds.push(Math.max(1, Math.round(performance.now() - timerStart)));
       score += 1;
       onUpdate(score);
       scoreEl.classList.remove('score-bump');
@@ -177,7 +180,9 @@
       screenGame.classList.add('flash-good');
       setTimeout(function () { screenGame.classList.remove('flash-good'); }, 220);
       clearField();
-      setTimeout(function () { if (running) nextRound(); }, 170);
+      // A tap round goes on after a clean release (the guard); anything else after a short beat.
+      if (viaTap) startGuard(category);
+      else setTimeout(function () { if (running) nextRound(); }, 170);
     }
   }
 
@@ -208,8 +213,8 @@
       makeBtn: makeBtn,
       setInstruction: setInstruction,
       addCleanup: function (fn) { cleanups.push(fn); },
-      // Tap rounds settle first (see tap discipline above); others count at once.
-      success: function () { if (def.tap) beginSettle(def.category); else resolve('success', null, def.category); },
+      // Counts at once; tap rounds then guard against a double tap or hold (see tap discipline above).
+      success: function () { resolve('success', null, def.category, !!def.tap); },
       fail: function (reason) { resolve('fail', reason, def.category); }
     };
 
@@ -239,7 +244,7 @@
     assisted = false;
     weeklyId = (opts && opts.weeklyId) || null;
     Challenges.setRng(null);
-    cancelSettle();
+    cancelGuard();
     currentDef = null;
     running = true;
     resolved = false;
@@ -252,7 +257,7 @@
     setTimeout(function () { if (running) nextRound(); }, 550);
   }
 
-  function stop() { running = false; canResume = false; cancelSettle(); stopTimer(); clearField(); Challenges.setRng(null); }
+  function stop() { running = false; canResume = false; cancelGuard(); stopTimer(); clearField(); Challenges.setRng(null); }
 
   // Rewarded Continue: pick up a failed casual run at its current score with a fresh
   // challenge after a short ready beat. Allowed once per run; the run is then "assisted".
@@ -260,7 +265,7 @@
     if (!canResume || running) return false;
     canResume = false;
     assisted = true;
-    cancelSettle();
+    cancelGuard();
     currentDef = null;
     running = true;
     resolved = false;
