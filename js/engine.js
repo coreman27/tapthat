@@ -13,6 +13,18 @@
   var resolved = false;
   var onUpdate = function () {}, onGameOver = function () {};
 
+  /* Tap discipline. A tap round is only cleared by one clean tap on the right button:
+     - a tap on empty space (missing the button) fails, in rounds that ask for a tap;
+     - a press longer than HOLD_MS is a hold, not a tap, and fails;
+     - another tap within EXTRA_TAP_MS of letting go is a double tap, and fails.
+     So a correct tap "settles" (finger up, then a short quiet window) before it counts.
+     The reaction time still counts from the moment the button was touched. */
+  var HOLD_MS = 450;
+  var EXTRA_TAP_MS = 180;
+  var currentDef = null, currentEnv = null;
+  var pointerDown = false, downAt = 0;
+  var settling = false, settleCategory = null, settleElapsed = 0, settleTimer = 0;
+
   function init(refs) {
     field = refs.field;
     instrEl = refs.instruction;
@@ -20,6 +32,74 @@
     notifLayer = refs.notifLayer;
     screenGame = refs.screenGame;
     scoreEl = refs.scoreEl;
+    // Capture phase: this sees every touch on the game screen before the buttons do.
+    screenGame.addEventListener('pointerdown', onScreenDown, true);
+    screenGame.addEventListener('pointerup', onScreenUp, true);
+    screenGame.addEventListener('pointercancel', onScreenUp, true);
+  }
+
+  function isButton(target) {
+    for (var node = target; node && node !== field; node = node.parentNode) {
+      if (node.classList && node.classList.contains('gbtn')) return true;
+    }
+    return false;
+  }
+  function inField(target) {
+    for (var node = target; node; node = node.parentNode) if (node === field) return true;
+    return false;
+  }
+
+  function missFails() {
+    if (!currentDef || !currentDef.miss) return false;
+    return typeof currentDef.miss === 'function' ? !!currentDef.miss(currentEnv) : true;
+  }
+
+  function onScreenDown(e) {
+    pointerDown = true;
+    downAt = performance.now();
+    if (!running) return;
+    if (settling) { finishSettle('fail', 'Double tap. One tap only.'); return; }
+    if (resolved) return;
+    if (missFails() && inField(e.target) && !isButton(e.target)) {
+      resolve('fail', 'Missed the button.', currentDef.category);
+    }
+  }
+
+  function onScreenUp() {
+    pointerDown = false;
+    if (!settling) return;
+    clearTimeout(settleTimer);
+    settleTimer = setTimeout(function () { finishSettle('success'); }, EXTRA_TAP_MS);
+  }
+
+  // A correct tap landed: stop the clock, clear the board, and wait for a clean release.
+  function beginSettle(category) {
+    if (resolved) return;
+    resolved = true;
+    settling = true;
+    settleCategory = category;
+    settleElapsed = performance.now() - timerStart;
+    stopTimer();
+    clearField();
+    if (pointerDown) {
+      var left = Math.max(0, HOLD_MS - (performance.now() - downAt));
+      settleTimer = setTimeout(function () { finishSettle('fail', 'That was a hold. Just tap.'); }, left);
+    } else {
+      settleTimer = setTimeout(function () { finishSettle('success'); }, EXTRA_TAP_MS);
+    }
+  }
+
+  function finishSettle(result, reason) {
+    if (!settling) return;
+    clearTimeout(settleTimer);
+    settling = false;
+    resolved = false;
+    resolve(result, reason, settleCategory, settleElapsed);
+  }
+
+  function cancelSettle() {
+    clearTimeout(settleTimer);
+    settling = false;
   }
 
   function clearField() {
@@ -69,7 +149,7 @@
 
   function stopTimer() { cancelAnimationFrame(raf); }
 
-  function resolve(result, reason, category) {
+  function resolve(result, reason, category, elapsed) {
     if (resolved) return;
     resolved = true;
     stopTimer();
@@ -89,7 +169,7 @@
         onGameOver({ score: score, reason: reason || 'Game over.', category: category, weeklyId: finished, rounds: rounds.slice(), assisted: assisted });
       }, 260);
     } else {
-      rounds.push(Math.max(1, Math.round(performance.now() - timerStart)));
+      rounds.push(Math.max(1, Math.round(elapsed === undefined ? performance.now() - timerStart : elapsed)));
       score += 1;
       onUpdate(score);
       scoreEl.classList.remove('score-bump');
@@ -114,10 +194,11 @@
     round += 1;
     var def = Adaptive.pickNext(score, lastId, weeklyId ? { rand: rng, fixed: true } : null);
     lastId = def.id;
+    currentDef = def;
     Store.recordPlay(def.category);
     var limit = Adaptive.timeLimit(def, score);
 
-    var env = {
+    var env = currentEnv = {
       field: field,
       notifLayer: notifLayer,
       fw: field.clientWidth,
@@ -130,7 +211,8 @@
       makeBtn: makeBtn,
       setInstruction: setInstruction,
       addCleanup: function (fn) { cleanups.push(fn); },
-      success: function () { resolve('success', null, def.category); },
+      // Tap rounds settle first (see tap discipline above); others count at once.
+      success: function () { if (def.tap) beginSettle(def.category); else resolve('success', null, def.category); },
       fail: function (reason) { resolve('fail', reason, def.category); }
     };
 
@@ -160,6 +242,8 @@
     assisted = false;
     weeklyId = (opts && opts.weeklyId) || null;
     Challenges.setRng(null);
+    cancelSettle();
+    currentDef = null;
     running = true;
     resolved = false;
     onUpdate(0);
@@ -171,7 +255,7 @@
     setTimeout(function () { if (running) nextRound(); }, 550);
   }
 
-  function stop() { running = false; canResume = false; stopTimer(); clearField(); Challenges.setRng(null); }
+  function stop() { running = false; canResume = false; cancelSettle(); stopTimer(); clearField(); Challenges.setRng(null); }
 
   // Rewarded Continue: pick up a failed casual run at its current score with a fresh
   // challenge after a short ready beat. Allowed once per run; the run is then "assisted".
@@ -179,6 +263,8 @@
     if (!canResume || running) return false;
     canResume = false;
     assisted = true;
+    cancelSettle();
+    currentDef = null;
     running = true;
     resolved = false;
     Sound.unlock();
@@ -199,6 +285,8 @@
     canResume: function () { return canResume && !running; },
     isAssisted: function () { return assisted; },
     getScore: function () { return score; },
-    getRounds: function () { return rounds.slice(); }
+    getRounds: function () { return rounds.slice(); },
+    HOLD_MS: HOLD_MS,
+    EXTRA_TAP_MS: EXTRA_TAP_MS
   };
 })(window);

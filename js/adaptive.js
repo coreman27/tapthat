@@ -47,9 +47,10 @@
     return candidates[candidates.length - 1];
   }
 
-  // difficulty ramps 0 -> 1 as score climbs; hits ~1 around score 45
+  // difficulty ramps 0 -> 1 as score climbs and peaks at RAMP_SCORE (was 45; 10% gentler since 1.1)
+  var RAMP_SCORE = 49.5;
   function difficulty(score) {
-    return Math.max(0, Math.min(1, score / 45));
+    return Math.max(0, Math.min(1, score / RAMP_SCORE));
   }
 
   // time limit in ms for a given def + score
@@ -62,6 +63,7 @@
   global.Adaptive = {
     pickNext: pickNext,
     difficulty: difficulty,
-    timeLimit: timeLimit
+    timeLimit: timeLimit,
+    RAMP_SCORE: RAMP_SCORE
   };
 })(window);

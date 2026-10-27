@@ -16,6 +16,7 @@ function assert(cond, msg) { if (!cond) { failures++; console.error('  \u2717 ' 
 // ---- minimal DOM stub ----
 function makeEl(tag) {
   const listeners = {};
+  const captures = new Set();
   const el = {
     tagName: tag, style: {}, _class: new Set(), children: [], parentNode: null,
     textContent: '', innerHTML: '',
@@ -31,9 +32,21 @@ function makeEl(tag) {
     appendChild: function (c) { c.parentNode = el; el.children.push(c); return c; },
     removeChild: function (c) { const i = el.children.indexOf(c); if (i >= 0) el.children.splice(i, 1); c.parentNode = null; },
     getBoundingClientRect: function () { return { left: 0, top: 0, width: el.clientWidth, height: el.clientHeight }; },
-    addEventListener: function (t, fn) { (listeners[t] = listeners[t] || []).push(fn); },
+    addEventListener: function (t, fn, capture) { (listeners[t] = listeners[t] || []).push(fn); if (capture) captures.add(fn); },
     removeEventListener: function (t, fn) { if (listeners[t]) listeners[t] = listeners[t].filter(function (f) { return f !== fn; }); },
-    dispatch: function (t, ev) { (listeners[t] || []).slice().forEach(function (fn) { fn(Object.assign({ preventDefault: function () {}, target: el }, ev)); }); },
+    // Like a browser: ancestors' capture listeners (outermost first), the target, then bubbling.
+    dispatch: function (t, ev) {
+      const event = Object.assign({ preventDefault: function () {}, target: el }, ev);
+      const path = []; for (let n = el.parentNode; n; n = n.parentNode) path.push(n);
+      path.slice().reverse().forEach(function (n) { n._fire(t, event, true); });
+      el._fire(t, event, null);
+      path.forEach(function (n) { n._fire(t, event, false); });
+    },
+    _fire: function (t, event, capture) {
+      (listeners[t] || []).slice().forEach(function (fn) {
+        if (capture === null || captures.has(fn) === capture) fn(event);
+      });
+    },
     _listeners: listeners
   };
   return el;
@@ -181,9 +194,11 @@ console.log('\nTouch cancellation and repeated rounds');
     return W.Challenges.DEFS.find(function (d) { return d.id === id; });
   };
   const field = makeEl('div');
+  const screenGame = makeEl('div');
+  screenGame.appendChild(field);
   W.Engine.init({
     field, instruction: makeEl('div'), timerFill: makeEl('div'),
-    notifLayer: makeEl('div'), screenGame: makeEl('div'), scoreEl: makeEl('div')
+    notifLayer: makeEl('div'), screenGame: screenGame, scoreEl: makeEl('div')
   });
   function advance(delay) {
     const i = timers.findIndex(function (timer) { return timer.delay === delay; });
@@ -202,6 +217,8 @@ console.log('\nTouch cancellation and repeated rounds');
         button.dispatch('pointerdown', {});
         button.dispatch('pointerup', {});
       }
+      assert(W.Engine.getScore() === i, 'round ' + i + ': a correct tap settles before it counts');
+      advance(W.Engine.EXTRA_TAP_MS);
       assert(W.Engine.getScore() === i + 1, 'round ' + i + ': taps advance score');
       button.dispatch('pointerdown', {});
       assert(W.Engine.getScore() === i + 1, 'round ' + i + ': old button handler removed');
@@ -225,9 +242,11 @@ console.log('\n3b) Weekly mode through the real engine is deterministic');
   function firstRoundLayout(weekId) {
     timers.length = 0;
     const field = makeEl('div');
+    const screenGame = makeEl('div');
+    screenGame.appendChild(field);
     W.Engine.init({
       field, instruction: makeEl('div'), timerFill: makeEl('div'),
-      notifLayer: makeEl('div'), screenGame: makeEl('div'), scoreEl: makeEl('div')
+      notifLayer: makeEl('div'), screenGame: screenGame, scoreEl: makeEl('div')
     });
     W.Engine.start({ weeklyId: weekId });
     timers.splice(timers.findIndex(function (t) { return t.delay === 550; }), 1)[0].fn();
@@ -260,9 +279,11 @@ console.log('\n3c) Rewarded Continue: the real engine resumes once, only casuall
   W.Adaptive.pickNext = function () { return def(script.shift() || 'tapme'); };
   const field = makeEl('div');
   const results = [];
+  const screenGame = makeEl('div');
+  screenGame.appendChild(field);
   W.Engine.init({
     field, instruction: makeEl('div'), timerFill: makeEl('div'),
-    notifLayer: makeEl('div'), screenGame: makeEl('div'), scoreEl: makeEl('div')
+    notifLayer: makeEl('div'), screenGame: screenGame, scoreEl: makeEl('div')
   });
   W.Engine.onGameOver(function (payload) { results.push(payload); });
   function advance(delay) {
@@ -271,7 +292,7 @@ console.log('\n3c) Rewarded Continue: the real engine resumes once, only casuall
     timers.splice(i, 1)[0].fn();
   }
   const lastButton = function () { return field.children[field.children.length - 1]; };
-  function tapCorrect() { lastButton().dispatch('pointerdown', {}); lastButton().dispatch('pointerup', {}); }
+  function tapCorrect() { lastButton().dispatch('pointerdown', {}); lastButton().dispatch('pointerup', {}); advance(W.Engine.EXTRA_TAP_MS); }
   function failNow() { lastButton().dispatch('pointerdown', {}); }   // DON'T TAP ME: tapping it fails
   try {
     // --- casual run: two clears, then a failure at score 2 ---
@@ -330,8 +351,9 @@ console.log('\n4) Adaptive selection + timing');
     var t = W.Adaptive.timeLimit(def, s);
     assert(t <= def.baseTime && t >= def.minTime, 'score ' + s + ': timeLimit within bounds');
   }
-  var d0 = W.Adaptive.difficulty(0), d45 = W.Adaptive.difficulty(45);
-  assert(d0 === 0 && d45 >= 0.99, 'difficulty ramps 0 -> 1');
+  var d0 = W.Adaptive.difficulty(0), d45 = W.Adaptive.difficulty(45), d50 = W.Adaptive.difficulty(50);
+  assert(d0 === 0 && d50 === 1, 'difficulty ramps 0 -> 1, peaking at score ~50');
+  assert(Math.abs(d45 - 45 / 49.5) < 1e-9, 'the ramp is 10% gentler than 1.0 (score 45 is ~91%, not 100%)');
 })();
 
 console.log('\n5) Adaptive weights toward failed categories');

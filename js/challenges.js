@@ -2,6 +2,8 @@
  * Each definition:
  *   id, category, minScore (unlock), baseTime (ms @easy), minTime (ms @hard),
  *   timeoutResult: 'fail' | 'success'  (what happens if timer runs out),
+ *   tap: true    cleared by one clean tap (a hold or a double tap fails; see engine.js),
+ *   miss: true | fn(env)   a tap on empty space fails this round,
  *   build(env): sets up DOM + handlers; may return/register cleanups.
  *
  * env = {
@@ -81,7 +83,7 @@
 
   // 1. TAP ME
   def({
-    id: 'tapme', category: 'tap', minScore: 0, baseTime: 1900, minTime: 720,
+    id: 'tapme', tap: true, miss: true, category: 'tap', minScore: 0, baseTime: 1900, minTime: 720,
     build: function (env) {
       var w = env.rint(140, 200), h = env.rint(90, 130);
       var p = layout(env, 1, w, h)[0];
@@ -108,7 +110,7 @@
 
   // 3. TAP <COLOR>
   def({
-    id: 'tapcolor', category: 'color', minScore: 2, baseTime: 1800, minTime: 780,
+    id: 'tapcolor', tap: true, miss: true, category: 'color', minScore: 2, baseTime: 1800, minTime: 780,
     build: function (env) {
       var target = env.pick(COLORS);
       var n = Math.min(5, 2 + Math.round(env.difficulty * 3));
@@ -128,7 +130,7 @@
 
   // 4. DON'T TAP <COLOR>  (tap any button that is NOT that color)
   def({
-    id: 'dontcolor', category: 'color', minScore: 5, baseTime: 1900, minTime: 850,
+    id: 'dontcolor', tap: true, miss: true, category: 'color', minScore: 5, baseTime: 1900, minTime: 850,
     build: function (env) {
       var bad = env.pick(COLORS);
       var pool = env.shuffle(COLORS).slice(0, Math.min(4, 3 + Math.round(env.difficulty)));
@@ -149,7 +151,7 @@
 
   // 5. TAP TWICE
   def({
-    id: 'taptwice', category: 'sequence', minScore: 3, baseTime: 1700, minTime: 820,
+    id: 'taptwice', tap: true, miss: true, category: 'sequence', minScore: 3, baseTime: 1700, minTime: 820,
     build: function (env) {
       var w = env.rint(150, 200), h = 120;
       var p = layout(env, 1, w, h)[0];
@@ -166,7 +168,7 @@
 
   // 6. HOLD
   def({
-    id: 'hold', category: 'sequence', minScore: 4, baseTime: 2200, minTime: 1400,
+    id: 'hold', miss: true, category: 'sequence', minScore: 4, baseTime: 2200, minTime: 1400,
     build: function (env) {
       var w = 200, h = 140;
       var p = layout(env, 1, w, h)[0];
@@ -186,11 +188,11 @@
       }
       function down(e) { e.preventDefault(); holding = true; startT = performance.now(); raf = requestAnimationFrame(frame); }
       function up() {
-        if (done) return;
+        if (done || !holding) return;
         holding = false;
         cancelAnimationFrame(raf);
-        if (gauge.offsetWidth > 4) env.fail('Released too early.');
-        gauge.style.width = '0%';
+        // Letting go before the bar fills ends the run: a quick tap is not a hold.
+        env.fail(performance.now() - startT < 250 ? 'That was a tap. Hold it.' : 'Let go too early.');
       }
       b.addEventListener('pointerdown', down);
       b.addEventListener('pointerup', up);
@@ -245,7 +247,7 @@
 
   // 8. TAP THE SMALLER / BIGGER ONE
   def({
-    id: 'tapsize', category: 'size', minScore: 4, baseTime: 1800, minTime: 800,
+    id: 'tapsize', tap: true, miss: true, category: 'size', minScore: 4, baseTime: 1800, minTime: 800,
     build: function (env) {
       var smaller = rand() < 0.5;
       env.setInstruction('TAP THE ' + (smaller ? 'SMALLER' : 'BIGGER') + ' ONE');
@@ -267,7 +269,7 @@
 
   // 10. TAP AFTER IT TURNS GREEN
   def({
-    id: 'tapgreen', category: 'reflex', minScore: 5, baseTime: 2400, minTime: 1500,
+    id: 'tapgreen', tap: true, miss: true, category: 'reflex', minScore: 5, baseTime: 2400, minTime: 1500,
     build: function (env) {
       var w = 200, h = 150;
       var p = { x: (env.fw - w) / 2, y: (env.fh - h) / 2 };
@@ -285,7 +287,7 @@
 
   // 11. STROOP — TAP THE WORD "X"  (words are colored to mislead)
   def({
-    id: 'stroop', category: 'stroop', minScore: 7, baseTime: 2100, minTime: 1000,
+    id: 'stroop', tap: true, miss: true, category: 'stroop', minScore: 7, baseTime: 2100, minTime: 1000,
     build: function (env) {
       var target = env.pick(COLORS);
       var n = Math.min(4, 3 + Math.round(env.difficulty));
@@ -309,7 +311,7 @@
 
   // 12. TAP THE NUMBER N
   def({
-    id: 'tapnumber', category: 'find', minScore: 6, baseTime: 1900, minTime: 900,
+    id: 'tapnumber', tap: true, miss: true, category: 'find', minScore: 6, baseTime: 1900, minTime: 900,
     build: function (env) {
       var n = Math.min(6, 3 + Math.round(env.difficulty * 3));
       var nums = env.shuffle([1, 2, 3, 4, 5, 6, 7, 8, 9]).slice(0, n);
@@ -328,7 +330,7 @@
 
   // 13. RUNAWAY — catch the fleeing button
   def({
-    id: 'runaway', category: 'distractor', minScore: 8, baseTime: 2600, minTime: 1500,
+    id: 'runaway', tap: true, category: 'distractor', minScore: 8, baseTime: 2600, minTime: 1500,
     build: function (env) {
       env.setInstruction('CATCH IT');
       var w = 110, h = 110;
@@ -365,7 +367,7 @@
 
   // 14. MOVING TARGETS — TAP <COLOR> while buttons drift
   def({
-    id: 'moving', category: 'distractor', minScore: 9, baseTime: 2400, minTime: 1300,
+    id: 'moving', tap: true, miss: true, category: 'distractor', minScore: 9, baseTime: 2400, minTime: 1300,
     build: function (env) {
       var target = env.pick(COLORS);
       var chosen = env.shuffle(COLORS).slice(0, 3);
@@ -427,7 +429,7 @@
 
   // 16. SCREEN ROTATES — TAP ME while rotated
   def({
-    id: 'rotate', category: 'distractor', minScore: 10, baseTime: 2400, minTime: 1500,
+    id: 'rotate', tap: true, miss: true, category: 'distractor', minScore: 10, baseTime: 2400, minTime: 1500,
     build: function (env) {
       env.setInstruction('TAP ME');
       var rot = env.pick(['rotate-90', 'rotate-180', 'rotate-270']);
@@ -442,7 +444,7 @@
 
   // 17. BAIT & SWITCH — instruction changes at the last instant
   def({
-    id: 'lastinstant', category: 'reflex', minScore: 12, baseTime: 2200, minTime: 1500,
+    id: 'lastinstant', tap: true, miss: function (env) { return !(env._timeoutFlip && env._timeoutFlip()); }, category: 'reflex', minScore: 12, baseTime: 2200, minTime: 1500,
     build: function (env) {
       // Starts looking like TAP ME, then flips to DON'T TAP (or a color)
       var w = 180, h = 120;
