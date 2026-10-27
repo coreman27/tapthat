@@ -44,9 +44,8 @@ test('purchase screen stays focused on removing ads; diagnostics live under how 
   for (const id of ['btn-remove-ads', 'btn-restore', 'btn-privacy-options', 'btn-store-retry', 'purchase-status']) {
     assert.ok(store.includes(`id="${id}"`), id);
   }
-  for (const id of ['ad-diagnostics-enabled', 'btn-ad-report', 'btn-ad-clear', 'ad-diagnostics-report']) {
-    assert.ok(how.includes(`id="${id}"`), id);
-  }
+  // The ad timing diagnostics panel is gone from How to play (2026-10-27): nothing a player can switch on.
+  assert.doesNotMatch(how, /ad-diagnostics|btn-ad-report|btn-ad-clear|timing diagnostics/i);
 });
 
 test('policy cadence survives relaunch rather than reverting to a new three-loss counter', async () => {
@@ -267,7 +266,6 @@ test('UI preserves celebration, passes previous best, and prevents double-tap re
   assert.deepEqual(themeWrites, [], 'launch never rewrites the saved theme (that would downgrade paying players)');
   element('btn-how').listeners.click();
   assert.equal(screen, 'how');
-  assert.equal(JSON.parse(element('ad-diagnostics-report').value).diagnosticsEnabled, false);
   element('btn-how-back').listeners.click();
   assert.equal(screen, 'home');
   element('btn-play').listeners.click();

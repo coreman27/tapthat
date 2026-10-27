@@ -228,14 +228,6 @@ button:disabled:active { transform: none; filter: none; opacity: 0.45; }
 
 .store-inner { gap: 12px; }
 .purchase-status { margin: 0; color: var(--muted); font-size: 14px; line-height: 1.4; max-width: 36ch; }
-.ad-diagnostics { width: 100%; max-width: 360px; text-align: left; color: var(--muted); font-size: 13px; }
-.ad-diagnostics summary { cursor: pointer; padding: 8px 0; }
-.ad-diagnostics label { display: block; margin: 8px 0; }
-.ad-diagnostics textarea {
-  width: 100%; color: var(--fg); background: var(--bg2);
-  border: 1px solid var(--line2); border-radius: 10px; padding: 8px;
-  user-select: text; -webkit-user-select: text; font-size: 12px;
-}
 
 .weekly-line { margin: 0; color: var(--muted); font-size: 13px; }
 .weekly-line:empty { display: none; }

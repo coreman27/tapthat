@@ -379,13 +379,6 @@
     next();
   }
 
-  function renderAdDiagnostics() {
-    var report = Monetization.getAdReport();
-    el('ad-diagnostics-enabled').checked = report.diagnosticsEnabled;
-    el('ad-diagnostics-report').value = JSON.stringify(report, null, 2);
-    if (report.warning) UI.toast(report.warning, 5000);
-  }
-
   function reportMonetizationError(error, fallback) {
     console.error('Monetization operation failed.', error);
     var message = error && typeof error.message === 'string' ? error.message : fallback;
@@ -487,10 +480,7 @@
     el('btn-home').addEventListener('click', function () {
       leaveGameOver(function () { challenger = null; UI.show('home'); refreshBest(); });
     });
-    el('btn-how').addEventListener('click', function () {
-      UI.show('how');
-      renderAdDiagnostics();
-    });
+    el('btn-how').addEventListener('click', function () { UI.show('how'); });
     el('btn-how-back').addEventListener('click', function () { UI.show('home'); });
     el('btn-themes').addEventListener('click', function () { themesOpen = true; renderThemes(); UI.show('themes'); });
     el('btn-themes-back').addEventListener('click', leaveThemes);
@@ -518,15 +508,6 @@
       });
     });
     el('btn-store-retry').addEventListener('click', initializeMonetization);
-    el('ad-diagnostics-enabled').addEventListener('change', function () {
-      Monetization.setDiagnosticsEnabled(this.checked);
-      renderAdDiagnostics();
-    });
-    el('btn-ad-report').addEventListener('click', renderAdDiagnostics);
-    el('btn-ad-clear').addEventListener('click', function () {
-      Monetization.clearDiagnostics();
-      renderAdDiagnostics();
-    });
     document.addEventListener('visibilitychange', function () {
       if (!document.hidden) { Monetization.touch(); refreshWeekly(); }
     });
@@ -584,7 +565,7 @@
 
     if (!handleIncomingChallenge()) UI.show('home');
     Monetization.onChange(renderMonetization);
-    initializeMonetization().then(renderAdDiagnostics);
+    initializeMonetization();
 
     // Register service worker for PWA/offline (ignored under file://)
     if ('serviceWorker' in navigator && location.protocol.indexOf('http') === 0) {
