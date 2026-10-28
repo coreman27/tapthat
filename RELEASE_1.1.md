@@ -81,7 +81,7 @@ approved, leaderboards work in development builds once they exist in App Store C
 1. **Upload** (same rules as Tableside: the build number goes up on every upload; builds come from pushed `main`):
    `cd ~/Source/tapthat && ./scripts/testflight.sh`. It bumps the build, runs the tests, syncs the web app into iOS,
    archives, uploads with the App Store Connect API key, then commits and pushes the bump. If App Store Connect
-   already has that number, rerun with `--build <next>`. (1.1.0 was submitted with build 28 on 2026-10-27. Xcode Cloud also uploaded builds up to 34 on every push to main until its "Default" workflow was disabled that day, so the next upload is `--build 35`.)
+   already has that number, rerun with `--build <next>`. (1.1.0 was rejected on 2026-10-28 because the theme in-app purchases were not submitted with it, then resubmitted with build 35 and all four in-app purchases plus both leaderboards in one submission. Xcode Cloud uploaded builds up to 34 on every push to main until its "Default" workflow was disabled on 2026-10-27. The next upload is 36 or higher.)
    No "Missing Compliance" question any more: Info.plist declares no non-exempt encryption.
 2. Create **version 1.1.0**; select the newest build once processed.
 3. **What's New**, description, keywords: `STORE_LISTING.md`. Mention the Game Center leaderboards and the weekly board.
